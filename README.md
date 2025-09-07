@@ -235,9 +235,9 @@ This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) 
 
 ### **⭐ Star this repo if it helped your workflow! ⭐**
 
-**[🏠 Homepage](https://github.com/yourusername/apex-artist-comfyui)** • 
-**[📥 Releases](https://github.com/yourusername/apex-artist-comfyui/releases)** • 
-**[🐛 Issues](https://github.com/yourusername/apex-artist-comfyui/issues)** • 
+**[🏠 Homepage](https://github.com/ApexArtist/apex-artist-comfyui)** • 
+**[📥 Releases](https://github.com/ApexArtist/apex-artist-comfyui/releases)** • 
+**[🐛 Issues](https://github.com/ApexArtist/apex-artist-comfyui/issues)** • 
 **[💡 Discussions](https://github.com/yourusername/apex-artist-comfyui/discussions)**
 
 *Made with ❤️ for creators, by creators*
