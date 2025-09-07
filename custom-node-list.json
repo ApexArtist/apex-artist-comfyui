@@ -1,0 +1,21 @@
+{
+  "author": "ApexArtist",
+  "title": "Apex Artist - Image Resize",
+  "reference": "https://github.com/ApexArtist/apex-artist-comfyui",
+  "files": [
+    "https://github.com/ApexArtist/apex-artist-comfyui"
+  ],
+  "install_type": "git-clone",
+  "description": "Professional image resizing node with 6 advanced algorithms, intelligent aspect ratio handling, crop/pad options, and batch processing support. Perfect for AI workflows, photography, and digital art.",
+  "category": "Image Processing",
+  "tags": [
+    "image",
+    "resize", 
+    "scaling",
+    "aspect-ratio",
+    "lanczos",
+    "bicubic",
+    "batch-processing"
+  ],
+  "version": "1.0.0"
+}
