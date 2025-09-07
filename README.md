@@ -41,7 +41,7 @@ When maintaining aspect ratios:
 ### Method 1: Git Clone (Recommended)
 ```bash
 cd ComfyUI/custom_nodes
-git clone https://github.com/yourusername/apex-artist-comfyui.git
+git clone https://github.com/ApexArtist/apex-artist-comfyui.git
 ```
 
 ### Method 2: Manual Download
