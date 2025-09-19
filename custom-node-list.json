@@ -1,21 +1,21 @@
 {
-  "author": "ApexArtist",
-  "title": "Apex Artist - Image Resize",
-  "reference": "https://github.com/ApexArtist/apex-artist-comfyui",
-  "files": [
-    "https://github.com/ApexArtist/apex-artist-comfyui"
-  ],
-  "install_type": "git-clone",
-  "description": "Professional image resizing node with 6 advanced algorithms, intelligent aspect ratio handling, crop/pad options, and batch processing support. Perfect for AI workflows, photography, and digital art.",
-  "category": "Image Processing",
-  "tags": [
-    "image",
-    "resize", 
-    "scaling",
-    "aspect-ratio",
-    "lanczos",
-    "bicubic",
-    "batch-processing"
-  ],
-  "version": "1.0.0"
+    "custom_nodes": [
+        {
+            "title": "Apex Artist Nodes",
+            "reference": "https://github.com/ApexArtist/comfyui-apex-artist",
+            "files": [
+                "https://github.com/ApexArtist/comfyui-apex-artist"
+            ],
+            "install_type": "git-clone",
+            "description": "Apex Artist - Professional image processing nodes with Smart Resize and intelligent automation tools that simplify your essential daily ComfyUI tasks",
+            "nodename_pattern": "Apex",
+            "author": "ApexArtist",
+            "title_aux": "YouTube: Apex Artist",
+            "tags": ["professional", "image-processing", "smart-resize", "automation", "workflow", "daily-tools", "apex-artist"],
+            "js_path": "apex_artist",
+            "preemptions": false,
+            "pip": ["torch", "torchvision"],
+            "version": "1.1.0"
+        }
+    ]
 }
