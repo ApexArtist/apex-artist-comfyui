@@ -1,12 +1,12 @@
-from .ApexArtist import ApexArtist
+from .apex_resize import ApexSmartResize  # Changed from ApexArtistImageResize
 from .apex_depth_to_normal import ApexDepthToNormal
 
 NODE_CLASS_MAPPINGS = {
-    "ApexArtist": ApexArtist,
-    "ApexArtist - Depth to Normal": ApexDepthToNormal,
+    "ApexSmartResize": ApexSmartResize,  # Changed class name
+    "ApexDepthToNormal": ApexDepthToNormal
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
-    "ApexArtist": "Apex Artist - Image Resize",
-    "ApexArtist - Depth to Normal": "Apex Artist - Depth to Normal",
+    "ApexSmartResize": "Apex Smart Resize",  # Updated display name
+    "ApexDepthToNormal": "Apex Depth To Normal"
 }
