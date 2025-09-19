@@ -1,70 +1,88 @@
 import { app } from "../../scripts/app.js";
 
-// Load CSS
-const cssLink = document.createElement("link");
-cssLink.rel = "stylesheet";
-cssLink.href = "./extensions/comfyui-apex-artist/web/apex_console.css";
-document.head.appendChild(cssLink);
+// Load CSS file
+const cssPath = new URL("./apex_console.css", import.meta.url).href;
+const link = document.createElement("link");
+link.rel = "stylesheet";
+link.type = "text/css";
+link.href = cssPath;
+document.head.appendChild(link);
 
-
-// Register the console widget
 app.registerExtension({
     name: "ApexArtist.Console",
+    
     async beforeRegisterNodeDef(nodeType, nodeData, app) {
         if (nodeData.name === "ApexConsole") {
+            
             const onNodeCreated = nodeType.prototype.onNodeCreated;
             nodeType.prototype.onNodeCreated = function () {
                 const result = onNodeCreated?.apply(this, arguments);
                 
-                // Create console display widget
+                // Create embedded console widget
                 const consoleWidget = this.addDOMWidget(
-                    "console_display", 
-                    "div", 
+                    "console_display",
+                    "div",
                     document.createElement("div")
                 );
                 
-                // Style the console
+                // Initial setup
+                consoleWidget.element.className = "apex-console theme-matrix";
                 consoleWidget.element.innerHTML = `
-                    <div style="
-                        background: linear-gradient(135deg, #0d1117 0%, #1a1a1a 100%);
-                        color: #00ff41;
-                        font-family: 'Fira Code', 'Courier New', monospace;
-                        font-size: 11px;
-                        padding: 15px;
-                        border: 2px solid #00ff41;
-                        border-radius: 8px;
-                        height: 300px;
-                        width: 500px;
-                        overflow-y: auto;
-                        white-space: pre-wrap;
-                        line-height: 1.4;
-                        box-shadow: 0 0 20px rgba(0, 255, 65, 0.3);
-                        position: relative;
-                    ">
-                        <div style="color: #00ff88; font-weight: bold; margin-bottom: 10px;">
-                            🎯 APEX CONSOLE READY
-                        </div>
-                        <div style="color: #666;">
-                            Waiting for data inputs...
+                    <div class="apex-console-header">
+                        🎯 APEX CONSOLE INITIALIZING...
+                    </div>
+                    <div class="apex-console-body">
+                        <div style="color: #666; font-style: italic; text-align: center; margin-top: 50px;">
+                            🔌 Connect data inputs to see console output
                         </div>
                     </div>
                 `;
                 
-                // Update console on execution
-                const onExecuted = this.onExecuted;
-                this.onExecuted = function(message) {
-                    if (message?.text) {
-                        const consoleText = message.text[0];
-                        consoleWidget.element.querySelector('div').innerHTML = 
-                            consoleText.replace(/\n/g, '<br>');
-                        
-                        // Auto-scroll to bottom
-                        consoleWidget.element.scrollTop = consoleWidget.element.scrollHeight;
-                    }
-                    return onExecuted?.apply(this, arguments);
-                };
+                // Set widget size
+                consoleWidget.element.style.width = "600px";
+                consoleWidget.element.style.height = "350px";
+                consoleWidget.element.style.resize = "both";
+                consoleWidget.element.style.overflow = "hidden";
                 
                 return result;
+            };
+            
+            // Handle execution and update console
+            const onExecuted = nodeType.prototype.onExecuted;
+            nodeType.prototype.onExecuted = function (message) {
+                const consoleWidget = this.widgets?.find(w => w.name === "console_display");
+                
+                if (consoleWidget && message.console_text) {
+                    const consoleText = message.console_text[0];
+                    const theme = message.theme ? message.theme[0] : "matrix";
+                    
+                    // Apply theme
+                    consoleWidget.element.className = `apex-console theme-${theme}`;
+                    
+                    // Format text with HTML styling
+                    const formattedText = consoleText
+                        .replace(/\n/g, '<br>')
+                        .replace(/(⏰ \d{2}:\d{2}:\d{2}\.\d{3})/g, '<span class="apex-timestamp">$1</span>')
+                        .replace(/(🎯|ℹ️|⚠️|❌|✅|🔍)/g, '<span class="apex-log-icon">$1</span>')
+                        .replace(/(📝|🔢|📊|🔘|🖼️|🎨|🎛️|🤖|📋)/g, '<span class="apex-data-icon">$1</span>')
+                        .replace(/(=+)/g, '<span class="apex-separator">$1</span>')
+                        .replace(/(─+)/g, '<span class="apex-divider">$1</span>');
+                    
+                    // Update console content
+                    consoleWidget.element.innerHTML = `
+                        <div class="apex-console-content">
+                            ${formattedText}
+                        </div>
+                    `;
+                    
+                    // Auto-scroll to bottom
+                    const content = consoleWidget.element.querySelector('.apex-console-content');
+                    if (content) {
+                        content.scrollTop = content.scrollHeight;
+                    }
+                }
+                
+                return onExecuted?.apply(this, arguments);
             };
         }
     }
