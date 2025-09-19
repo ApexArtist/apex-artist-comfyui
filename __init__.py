@@ -34,3 +34,8 @@ print("   📦 Available nodes:")
 print("      🎯 Apex Smart Resize - Intelligent image resizing")
 print("      🗺️ Apex Depth to Normal - Depth map conversion") 
 print("      🖥️ Apex Console - Universal data formatter")
+
+# Web directory for CSS/JS
+WEB_DIRECTORY = "./web"
+
+__all__ = ['NODE_CLASS_MAPPINGS', 'NODE_DISPLAY_NAME_MAPPINGS', 'WEB_DIRECTORY']
