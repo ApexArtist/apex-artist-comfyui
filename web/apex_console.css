@@ -1,215 +1,111 @@
-/* Apex Artist Console Styling */
 .apex-console {
     background: linear-gradient(135deg, #0d1117 0%, #161b22 50%, #0d1117 100%);
     color: #00ff41;
-    font-family: 'Fira Code', 'JetBrains Mono', 'Consolas', 'Courier New', monospace;
-    font-size: 12px;
+    font-family: 'Fira Code', 'JetBrains Mono', 'Consolas', 'Monaco', 'Courier New', monospace;
+    font-size: 11px;
     font-weight: 400;
-    padding: 20px;
     border: 2px solid #00ff41;
     border-radius: 12px;
     box-shadow: 
         0 0 30px rgba(0, 255, 65, 0.4),
-        inset 0 0 30px rgba(0, 0, 0, 0.8),
-        0 4px 15px rgba(0, 0, 0, 0.5);
-    white-space: pre-wrap;
-    line-height: 1.6;
-    max-height: 400px;
-    min-height: 200px;
-    width: 100%;
-    overflow-y: auto;
+        inset 0 0 30px rgba(0, 0, 0, 0.8);
+    overflow: hidden;
     position: relative;
-    backdrop-filter: blur(10px);
-    animation: consoleGlow 3s ease-in-out infinite alternate;
+    backdrop-filter: blur(5px);
 }
 
-/* Terminal window controls */
-.apex-console::before {
-    content: "🔴 🟡 🟢";
-    position: absolute;
-    top: 12px;
-    right: 20px;
-    font-size: 12px;
-    z-index: 10;
+.apex-console-content {
+    padding: 15px;
+    height: 100%;
+    overflow-y: auto;
+    white-space: pre-wrap;
+    line-height: 1.5;
 }
 
-/* Console header */
-.apex-console-header {
-    color: #00ff88;
-    font-weight: bold;
-    font-size: 14px;
-    margin-bottom: 15px;
-    padding-bottom: 10px;
-    border-bottom: 1px solid #00ff41;
-    text-shadow: 0 0 10px rgba(0, 255, 65, 0.8);
-}
-
-/* Log level colors */
-.apex-log-debug { 
-    color: #666666; 
+.apex-timestamp {
+    color: #666;
+    font-size: 9px;
     opacity: 0.8;
 }
 
-.apex-log-info { 
-    color: #00ff41; 
-    text-shadow: 0 0 5px rgba(0, 255, 65, 0.5);
+.apex-log-icon {
+    font-size: 13px;
+    margin-right: 5px;
+    text-shadow: 0 0 5px currentColor;
 }
 
-.apex-log-warning { 
-    color: #ffaa00; 
-    text-shadow: 0 0 5px rgba(255, 170, 0, 0.6);
+.apex-data-icon {
+    color: #00ff88;
+    font-size: 12px;
+    margin-right: 3px;
 }
 
-.apex-log-error { 
-    color: #ff4444; 
-    text-shadow: 0 0 8px rgba(255, 68, 68, 0.8);
-    font-weight: 500;
+.apex-separator {
+    color: #00ff41;
+    font-weight: bold;
+    text-shadow: 0 0 5px #00ff41;
 }
 
-.apex-log-success { 
-    color: #00ff88; 
-    text-shadow: 0 0 8px rgba(0, 255, 136, 0.7);
-}
-
-/* Timestamp styling */
-.apex-timestamp {
-    color: #666666;
-    font-size: 10px;
+.apex-divider {
+    color: #00cc33;
     opacity: 0.7;
 }
 
-/* Data type indicators */
-.apex-data-string { color: #e1c5fe; }
-.apex-data-number { color: #79c0ff; }
-.apex-data-boolean { color: #f85149; }
-.apex-data-object { color: #ffa657; }
-
-/* Console line styling */
-.apex-console-line {
-    margin: 3px 0;
-    padding: 4px 8px;
-    border-radius: 4px;
-    transition: background-color 0.2s ease;
+/* Theme: Matrix (Default) */
+.apex-console.theme-matrix {
+    background: linear-gradient(135deg, #001100 0%, #003300 50%, #001100 100%);
+    color: #00ff41;
+    border-color: #00ff41;
+    box-shadow: 0 0 30px rgba(0, 255, 65, 0.5);
 }
 
-.apex-console-line:hover {
-    background-color: rgba(0, 255, 65, 0.1);
-}
-
-/* Scrollbar styling */
-.apex-console::-webkit-scrollbar {
-    width: 10px;
-}
-
-.apex-console::-webkit-scrollbar-track {
-    background: rgba(0, 0, 0, 0.3);
-    border-radius: 5px;
-}
-
-.apex-console::-webkit-scrollbar-thumb {
-    background: linear-gradient(45deg, #00ff41, #00cc33);
-    border-radius: 5px;
-    box-shadow: 0 0 5px rgba(0, 255, 65, 0.5);
-}
-
-.apex-console::-webkit-scrollbar-thumb:hover {
-    background: linear-gradient(45deg, #00ff88, #00ff41);
-}
-
-/* Glow animation */
-@keyframes consoleGlow {
-    0% { 
-        box-shadow: 
-            0 0 20px rgba(0, 255, 65, 0.3),
-            inset 0 0 20px rgba(0, 0, 0, 0.8);
-    }
-    100% { 
-        box-shadow: 
-            0 0 40px rgba(0, 255, 65, 0.6),
-            inset 0 0 30px rgba(0, 0, 0, 0.9);
-    }
-}
-
-/* Theme variants */
+/* Theme: Cyberpunk */
 .apex-console.theme-cyberpunk {
     background: linear-gradient(135deg, #0a0a0a 0%, #1a0a1a 50%, #0a0a1a 100%);
     color: #ff00ff;
     border-color: #ff00ff;
+    box-shadow: 0 0 30px rgba(255, 0, 255, 0.5);
 }
 
-.apex-console.theme-cyberpunk .apex-log-info {
+.apex-console.theme-cyberpunk .apex-data-icon {
     color: #00ffff;
-    text-shadow: 0 0 5px rgba(0, 255, 255, 0.6);
 }
 
-.apex-console.theme-dracula {
-    background: linear-gradient(135deg, #282a36 0%, #44475a 50%, #282a36 100%);
-    color: #f8f8f2;
-    border-color: #bd93f9;
-}
-
+/* Theme: Classic */
 .apex-console.theme-classic {
     background: #000000;
     color: #00ff00;
     border-color: #00ff00;
     font-family: 'Courier New', monospace;
+    box-shadow: 0 0 20px rgba(0, 255, 0, 0.4);
 }
 
-/* Responsive sizing */
-@media (max-width: 768px) {
-    .apex-console {
-        font-size: 10px;
-        padding: 15px;
-        max-height: 300px;
-    }
+/* Theme: Dracula */
+.apex-console.theme-dracula {
+    background: linear-gradient(135deg, #282a36 0%, #44475a 50%, #282a36 100%);
+    color: #f8f8f2;
+    border-color: #bd93f9;
+    box-shadow: 0 0 30px rgba(189, 147, 249, 0.4);
 }
 
-/* Loading animation */
-.apex-console-loading {
-    display: inline-block;
+.apex-console.theme-dracula .apex-data-icon {
+    color: #50fa7b;
+}
+
+/* Scrollbar styling */
+.apex-console-content::-webkit-scrollbar {
     width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    background: #00ff41;
-    animation: pulse 1.5s ease-in-out infinite;
 }
 
-@keyframes pulse {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.3; }
+.apex-console-content::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.3);
 }
 
-/* JSON formatting */
-.apex-json-key {
-    color: #79c0ff;
-    font-weight: bold;
+.apex-console-content::-webkit-scrollbar-thumb {
+    background: rgba(0, 255, 65, 0.6);
+    border-radius: 4px;
 }
 
-.apex-json-string {
-    color: #a5d6ff;
-}
-
-.apex-json-number {
-    color: #79c0ff;
-}
-
-.apex-json-boolean {
-    color: #f85149;
-    font-weight: bold;
-}
-
-/* Error highlighting */
-.apex-error-highlight {
-    background: rgba(255, 68, 68, 0.2);
-    border-left: 3px solid #ff4444;
-    padding-left: 8px !important;
-    margin-left: -8px;
-}
-
-/* Success highlighting */
-.apex-success-highlight {
-    background: rgba(0, 255, 136, 0.1);
-    border-left: 3px solid #00ff88;
-    padding-left: 8px !important;
-    margin-left: -8px;
+.apex-console-content::-webkit-scrollbar-thumb:hover {
+    background: rgba(0, 255, 65, 0.8);
 }
