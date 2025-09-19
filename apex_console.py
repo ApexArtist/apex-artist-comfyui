@@ -8,7 +8,8 @@ class ApexConsole:
     def INPUT_TYPES(cls):
         return {
             "required": {
-                "input_data": ("*", {}),  # Universal input - accepts ANY type
+                # Use ComfyUI's standard "any" type format
+                "input_data": (["*"], {"tooltip": "Connect any data type here"}),
             },
             "optional": {
                 "custom_label": ("STRING", {"default": "APEX CONSOLE"}),
@@ -27,6 +28,14 @@ class ApexConsole:
     FUNCTION = "display_console"
     OUTPUT_NODE = True
     CATEGORY = "Apex Artist/Console"
+    
+    # Allow any input type
+    INPUT_IS_LIST = False
+    
+    @classmethod
+    def VALIDATE_INPUTS(cls, input_data, **kwargs):
+        # Accept any input type
+        return True
     
     def get_log_emoji(self, log_level: str) -> str:
         """Get emoji for log level"""
@@ -73,27 +82,26 @@ class ApexConsole:
                 return f"🔘 Boolean: {status}"
             
             # TENSOR DATA (PyTorch)
-            elif isinstance(data, torch.Tensor):
+            elif hasattr(data, 'shape') and hasattr(data, 'dtype'):
                 shape = tuple(data.shape)
                 dtype = str(data.dtype)
-                device = str(data.device)
-                size_mb = data.element_size() * data.nelement() / (1024 * 1024)
                 
-                if detailed:
-                    return f"🎨 Tensor: {shape}\n   Type: {dtype} | Device: {device}\n   Memory: ~{size_mb:.1f}MB"
+                # Check if it's a torch tensor
+                if hasattr(data, 'device'):
+                    device = str(data.device)
+                    size_mb = data.element_size() * data.nelement() / (1024 * 1024)
+                    
+                    if detailed:
+                        return f"🎨 Tensor: {shape}\n   Type: {dtype} | Device: {device}\n   Memory: ~{size_mb:.1f}MB"
+                    else:
+                        return f"🎨 Tensor: {shape} | {dtype} | ~{size_mb:.1f}MB"
                 else:
-                    return f"🎨 Tensor: {shape} | {dtype} | ~{size_mb:.1f}MB"
-            
-            # NUMPY ARRAY
-            elif isinstance(data, np.ndarray):
-                shape = data.shape
-                dtype = str(data.dtype)
-                size_mb = data.nbytes / (1024 * 1024)
-                
-                if detailed:
-                    return f"🖼️ NumPy Array: {shape}\n   Type: {dtype} | Memory: ~{size_mb:.1f}MB"
-                else:
-                    return f"🖼️ Array: {shape} | {dtype}"
+                    # NumPy array
+                    size_mb = data.nbytes / (1024 * 1024)
+                    if detailed:
+                        return f"🖼️ NumPy Array: {shape}\n   Type: {dtype} | Memory: ~{size_mb:.1f}MB"
+                    else:
+                        return f"🖼️ Array: {shape} | {dtype}"
             
             # LIST DATA
             elif isinstance(data, list):
@@ -102,7 +110,7 @@ class ApexConsole:
                     return "📋 Empty List"
                 
                 # Check if it's a list of tensors (common in ComfyUI)
-                if length > 0 and isinstance(data[0], torch.Tensor):
+                if length > 0 and hasattr(data[0], 'shape'):
                     first_shape = tuple(data[0].shape)
                     return f"📋 Tensor List: {length} items | Shape: {first_shape}"
                 else:
@@ -119,16 +127,16 @@ class ApexConsole:
                 keys = list(data.keys())
                 
                 # Special handling for ComfyUI data structures
-                if 'samples' in data and isinstance(data['samples'], torch.Tensor):
+                if 'samples' in data and hasattr(data['samples'], 'shape'):
                     # Latent space data
                     shape = tuple(data['samples'].shape)
                     return f"🎨 Latent Space: {shape} | Batch: {shape[0]}"
                 
-                elif all(key in data for key in ['model', 'clip', 'vae']):
+                elif any(key in keys for key in ['model', 'clip', 'vae']):
                     # Model bundle
                     return f"🤖 Model Bundle: {', '.join(keys)}"
                 
-                elif 'cond' in str(keys).lower():
+                elif any('cond' in str(key).lower() for key in keys):
                     # Conditioning data
                     return f"🎛️ Conditioning: {len(keys)} components"
                 
@@ -167,7 +175,7 @@ class ApexConsole:
         """Main console display function"""
         
         try:
-            # Get settings
+            # Get settings with safe defaults
             custom_label = kwargs.get('custom_label', 'APEX CONSOLE')
             log_level = kwargs.get('log_level', 'INFO')
             show_timestamp = kwargs.get('show_timestamp', True)
