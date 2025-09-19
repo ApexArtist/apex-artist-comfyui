@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Apex_Resize.py - Smart resolution snapping for AI compatibility
+Apex_Smart_Resize.py - Smart resolution snapping for AI compatibility
 YouTube Channel: Apex Artist
 Auto-snap to optimal resolutions with intelligent scaling
 """
@@ -110,8 +110,6 @@ class ApexSmartResize:
             orig_area = orig_w * orig_h
             orig_aspect = orig_w / orig_h
             
-            print(f"🖼️  Original: {orig_w}x{orig_h} (aspect: {orig_aspect:.3f})")
-            
             # Find best target resolution
             target_w, target_h, info = self._find_best_resolution(
                 orig_w, orig_h, resolution_set, snap_method, show_candidates
@@ -120,8 +118,8 @@ class ApexSmartResize:
             target_area = target_w * target_h
             scale_factor = math.sqrt(target_area / orig_area)
             
-            print(f"🎯 Target: {target_w}x{target_h} (scale: {scale_factor:.2f}x)")
-            print(f"📝 {info}")
+            # Friendly logging
+            self._log_friendly_resize(orig_w, orig_h, target_w, target_h, scale_factor, resize_mode)
             
             # Resize the image
             resized_image = self._apply_resize(image, target_w, target_h, resize_mode, interpolation)
@@ -129,8 +127,38 @@ class ApexSmartResize:
             return (resized_image, target_w, target_h, scale_factor, info)
             
         except Exception as e:
-            print(f"❌ Apex Smart Resize Error: {str(e)}")
+            print(f"❌ Oops! Something went wrong: {str(e)}")
             return (image, orig_w, orig_h, 1.0, f"Error: {str(e)}")
+    
+    def _log_friendly_resize(self, orig_w, orig_h, target_w, target_h, scale_factor, resize_mode):
+        """Friendly console logging"""
+        
+        size_change_percent = ((scale_factor * scale_factor - 1) * 100)
+        
+        # Determine what happened
+        if scale_factor > 1.2:
+            action = f"📈 Your image was a bit small, so I upscaled it by {size_change_percent:.0f}%"
+        elif scale_factor < 0.8:
+            action = f"📉 Your image was too big, so I scaled it down by {abs(size_change_percent):.0f}%"
+        elif scale_factor > 1.05:
+            action = f"📏 I gave your image a small upscale of {size_change_percent:.0f}%"
+        elif scale_factor < 0.95:
+            action = f"📏 I gave your image a small downscale of {abs(size_change_percent):.0f}%"
+        else:
+            action = "✨ Your image was already the perfect size!"
+        
+        # Resize mode explanation
+        mode_msg = ""
+        if resize_mode == "crop_center":
+            mode_msg = " and cropped it to fit perfectly"
+        elif "pad" in resize_mode:
+            pad_color = "black" if "black" in resize_mode else "white" if "white" in resize_mode else "edge"
+            mode_msg = f" and added {pad_color} padding to fit"
+        elif resize_mode == "stretch":
+            if abs(scale_factor - 1.0) > 0.1:
+                mode_msg = " (stretched to exact dimensions)"
+        
+        print(f"🎯 {action} from {orig_w}×{orig_h} to {target_w}×{target_h}{mode_msg}")
     
     def _find_best_resolution(self, orig_w, orig_h, resolution_set, snap_method, show_candidates):
         """Find the best target resolution based on method"""
