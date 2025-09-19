@@ -7,6 +7,8 @@ Auto-snap to optimal resolutions with intelligent scaling
 import torch
 import torch.nn.functional as F
 import math
+import json
+from datetime import datetime
 
 class ApexSmartResize:
     """
@@ -92,12 +94,14 @@ class ApexSmartResize:
             }
         }
 
-    RETURN_TYPES = ("IMAGE", "INT", "INT", "FLOAT", "STRING")
-    RETURN_NAMES = ("image", "width", "height", "scale_factor", "resolution_info")
+    RETURN_TYPES = ("IMAGE", "INT", "INT", "FLOAT", "STRING", "STRING")
+    RETURN_NAMES = ("image", "width", "height", "scale_factor", "resolution_info", "console_log")
     FUNCTION = "smart_resize"
     CATEGORY = "ApexArtist/Image"
 
     def smart_resize(self, image, resolution_set, snap_method, resize_mode, interpolation, show_candidates):
+        
+        start_time = datetime.now()
         
         try:
             # Get input dimensions
@@ -111,54 +115,115 @@ class ApexSmartResize:
             orig_aspect = orig_w / orig_h
             
             # Find best target resolution
-            target_w, target_h, info = self._find_best_resolution(
+            target_w, target_h, info, candidates_info = self._find_best_resolution(
                 orig_w, orig_h, resolution_set, snap_method, show_candidates
             )
             
             target_area = target_w * target_h
             scale_factor = math.sqrt(target_area / orig_area)
             
-            # Friendly logging
-            self._log_friendly_resize(orig_w, orig_h, target_w, target_h, scale_factor, resize_mode)
+            # Generate friendly log and console data
+            friendly_log = self._create_friendly_log(
+                orig_w, orig_h, target_w, target_h, scale_factor, resize_mode, resolution_set, snap_method
+            )
+            
+            console_data = self._create_console_data(
+                orig_w, orig_h, target_w, target_h, scale_factor, resize_mode, 
+                resolution_set, snap_method, candidates_info, start_time
+            )
+            
+            # Print friendly log to console
+            print(friendly_log)
             
             # Resize the image
             resized_image = self._apply_resize(image, target_w, target_h, resize_mode, interpolation)
             
-            return (resized_image, target_w, target_h, scale_factor, info)
+            # Calculate processing time
+            processing_time = (datetime.now() - start_time).total_seconds()
+            console_data["processing_time_seconds"] = round(processing_time, 3)
+            
+            # Format console output
+            console_output = json.dumps(console_data, indent=2)
+            
+            return (resized_image, target_w, target_h, scale_factor, info, console_output)
             
         except Exception as e:
-            print(f"❌ Oops! Something went wrong: {str(e)}")
-            return (image, orig_w, orig_h, 1.0, f"Error: {str(e)}")
+            error_log = f"❌ Resize failed: {str(e)}"
+            print(error_log)
+            
+            error_console = json.dumps({
+                "status": "error",
+                "message": str(e),
+                "original_size": f"{orig_w}x{orig_h}",
+                "timestamp": datetime.now().isoformat()
+            }, indent=2)
+            
+            return (image, orig_w, orig_h, 1.0, f"Error: {str(e)}", error_console)
     
-    def _log_friendly_resize(self, orig_w, orig_h, target_w, target_h, scale_factor, resize_mode):
-        """Friendly console logging"""
+    def _create_friendly_log(self, orig_w, orig_h, target_w, target_h, scale_factor, resize_mode, resolution_set, snap_method):
+        """Create friendly console log message"""
         
         size_change_percent = ((scale_factor * scale_factor - 1) * 100)
         
         # Determine what happened
         if scale_factor > 1.2:
-            action = f"📈 Your image was a bit small, so I upscaled it by {size_change_percent:.0f}%"
+            action = f"📈 Smart upscaled by {size_change_percent:.0f}%"
         elif scale_factor < 0.8:
-            action = f"📉 Your image was too big, so I scaled it down by {abs(size_change_percent):.0f}%"
+            action = f"📉 Smart downscaled by {abs(size_change_percent):.0f}%"
         elif scale_factor > 1.05:
-            action = f"📏 I gave your image a small upscale of {size_change_percent:.0f}%"
+            action = f"📏 Minor upscale of {size_change_percent:.0f}%"
         elif scale_factor < 0.95:
-            action = f"📏 I gave your image a small downscale of {abs(size_change_percent):.0f}%"
+            action = f"📏 Minor downscale of {abs(size_change_percent):.0f}%"
         else:
-            action = "✨ Your image was already the perfect size!"
+            action = "✨ Perfect size - no scaling needed!"
         
         # Resize mode explanation
         mode_msg = ""
         if resize_mode == "crop_center":
-            mode_msg = " and cropped it to fit perfectly"
+            mode_msg = " with center cropping"
         elif "pad" in resize_mode:
             pad_color = "black" if "black" in resize_mode else "white" if "white" in resize_mode else "edge"
-            mode_msg = f" and added {pad_color} padding to fit"
+            mode_msg = f" with {pad_color} padding"
         elif resize_mode == "stretch":
             if abs(scale_factor - 1.0) > 0.1:
                 mode_msg = " (stretched to exact dimensions)"
         
-        print(f"🎯 {action} from {orig_w}×{orig_h} to {target_w}×{target_h}{mode_msg}")
+        return f"🎯 {action} • {orig_w}×{orig_h} → {target_w}×{target_h}{mode_msg} • {resolution_set} set"
+    
+    def _create_console_data(self, orig_w, orig_h, target_w, target_h, scale_factor, resize_mode, 
+                           resolution_set, snap_method, candidates_info, start_time):
+        """Create structured data for Apex Console"""
+        
+        orig_area = orig_w * orig_h
+        target_area = target_w * target_h
+        memory_change_mb = ((target_area - orig_area) * 4 * 3) / (1024 * 1024)  # Assume RGB float32
+        
+        return {
+            "action": "Smart Resize Complete",
+            "status": "success",
+            "timestamp": start_time.isoformat(),
+            "input": {
+                "size": f"{orig_w}x{orig_h}",
+                "aspect_ratio": round(orig_w / orig_h, 3),
+                "total_pixels": f"{orig_area:,}",
+                "estimated_memory_mb": round((orig_area * 4 * 3) / (1024 * 1024), 1)
+            },
+            "output": {
+                "size": f"{target_w}x{target_h}",
+                "aspect_ratio": round(target_w / target_h, 3),
+                "total_pixels": f"{target_area:,}",
+                "estimated_memory_mb": round((target_area * 4 * 3) / (1024 * 1024), 1)
+            },
+            "processing": {
+                "resolution_set": resolution_set,
+                "snap_method": snap_method,
+                "resize_mode": resize_mode,
+                "scale_factor": round(scale_factor, 3),
+                "size_change_percent": round(((scale_factor * scale_factor - 1) * 100), 1),
+                "memory_change_mb": round(memory_change_mb, 1)
+            },
+            "candidates": candidates_info
+        }
     
     def _find_best_resolution(self, orig_w, orig_h, resolution_set, snap_method, show_candidates):
         """Find the best target resolution based on method"""
@@ -168,7 +233,8 @@ class ApexSmartResize:
         orig_aspect = orig_w / orig_h
         
         if snap_method == "keep_proportion":
-            return self._keep_proportion_snap(orig_w, orig_h, resolutions, show_candidates)
+            target_w, target_h, info, candidates = self._keep_proportion_snap(orig_w, orig_h, resolutions, show_candidates)
+            return target_w, target_h, info, candidates
         
         # Other methods
         candidates = []
@@ -181,12 +247,12 @@ class ApexSmartResize:
             area_diff = abs(area - orig_area)
             
             candidates.append({
-                'resolution': (w, h),
-                'area': area,
-                'aspect': aspect,
-                'scale_factor': scale_factor,
-                'aspect_diff': aspect_diff,
-                'area_diff': area_diff
+                'resolution': f"{w}x{h}",
+                'scale_factor': round(scale_factor, 3),
+                'aspect_ratio': round(aspect, 3),
+                'aspect_diff': round(aspect_diff, 3),
+                'area_diff': area_diff,
+                'total_pixels': f"{area:,}"
             })
         
         # Sort candidates based on method
@@ -201,22 +267,22 @@ class ApexSmartResize:
             info = f"Closest aspect ratio from {resolution_set}"
             
         elif snap_method == "prefer_larger":
-            larger_candidates = [c for c in candidates if c['area'] >= orig_area]
+            larger_candidates = [c for c in candidates if c['area_diff'] >= 0]
             if larger_candidates:
-                larger_candidates.sort(key=lambda x: x['area'])
+                larger_candidates.sort(key=lambda x: x['area_diff'])
                 best = larger_candidates[0]
             else:
-                candidates.sort(key=lambda x: x['area'], reverse=True)
+                candidates.sort(key=lambda x: x['area_diff'], reverse=True)
                 best = candidates[0]
             info = f"Prefer larger from {resolution_set}"
             
         else:  # prefer_smaller
-            smaller_candidates = [c for c in candidates if c['area'] <= orig_area]
+            smaller_candidates = [c for c in candidates if c['area_diff'] <= 0]
             if smaller_candidates:
-                smaller_candidates.sort(key=lambda x: x['area'], reverse=True)
+                smaller_candidates.sort(key=lambda x: x['area_diff'], reverse=True)
                 best = smaller_candidates[0]
             else:
-                candidates.sort(key=lambda x: x['area'])
+                candidates.sort(key=lambda x: x['area_diff'])
                 best = candidates[0]
             info = f"Prefer smaller from {resolution_set}"
         
@@ -225,12 +291,18 @@ class ApexSmartResize:
             print("🏆 Top 5 resolution candidates:")
             sorted_candidates = sorted(candidates, key=lambda x: x['area_diff'])[:5]
             for i, c in enumerate(sorted_candidates):
-                w, h = c['resolution']
                 marker = "👑" if c == best else f"  {i+1}."
-                print(f"{marker} {w}x{h} (scale: {c['scale_factor']:.2f}x, aspect: {c['aspect']:.3f})")
+                print(f"{marker} {c['resolution']} (scale: {c['scale_factor']}x, aspect: {c['aspect_ratio']})")
         
-        target_w, target_h = best['resolution']
-        return target_w, target_h, info
+        # Extract target dimensions
+        w, h = map(int, best['resolution'].split('x'))
+        candidates_info = {
+            "method": snap_method,
+            "total_evaluated": len(candidates),
+            "top_5": sorted(candidates, key=lambda x: x['area_diff'])[:5]
+        }
+        
+        return w, h, info, candidates_info
     
     def _keep_proportion_snap(self, orig_w, orig_h, resolutions, show_candidates):
         """Scale by largest dimension while maintaining aspect ratio"""
@@ -265,10 +337,10 @@ class ApexSmartResize:
                         score = aspect_diff * 10 + scale_diff * 2
                         
                         candidates.append({
-                            'resolution': (target_w, target_h),
-                            'scale_factor': scale_factor,
-                            'aspect_diff': aspect_diff,
-                            'score': score
+                            'resolution': f"{target_w}x{target_h}",
+                            'scale_factor': round(scale_factor, 3),
+                            'aspect_diff': round(aspect_diff, 3),
+                            'score': round(score, 3)
                         })
                         
                         if score < best_score:
@@ -289,10 +361,10 @@ class ApexSmartResize:
                         score = aspect_diff * 10 + scale_diff * 2
                         
                         candidates.append({
-                            'resolution': (target_w, target_h),
-                            'scale_factor': scale_factor,
-                            'aspect_diff': aspect_diff,
-                            'score': score
+                            'resolution': f"{target_w}x{target_h}",
+                            'scale_factor': round(scale_factor, 3),
+                            'aspect_diff': round(aspect_diff, 3),
+                            'score': round(score, 3)
                         })
                         
                         if score < best_score:
@@ -313,14 +385,22 @@ class ApexSmartResize:
             print("🏆 Keep Proportion candidates:")
             sorted_candidates = sorted(candidates, key=lambda x: x['score'])[:5]
             for i, c in enumerate(sorted_candidates):
-                w, h = c['resolution']
-                marker = "👑" if (w, h) == best_match else f"  {i+1}."
-                print(f"{marker} {w}x{h} (scale: {c['scale_factor']:.2f}x, aspect_diff: {c['aspect_diff']:.3f})")
+                marker = "👑" if c['resolution'] == f"{best_match[0]}x{best_match[1]}" else f"  {i+1}."
+                print(f"{marker} {c['resolution']} (scale: {c['scale_factor']}x, aspect_diff: {c['aspect_diff']})")
         
         target_w, target_h = best_match
         info = f"Keep proportion snap from {len(resolutions)} resolutions"
         
-        return target_w, target_h, info
+        candidates_info = {
+            "method": "keep_proportion",
+            "orientation": "portrait" if orig_h > orig_w else "landscape",
+            "total_evaluated": len(candidates),
+            "top_5": sorted(candidates, key=lambda x: x['score'])[:5] if candidates else []
+        }
+        
+        return target_w, target_h, info, candidates_info
+    
+    # ... [Keep all your existing _apply_resize, _resize_tensor, etc. methods unchanged] ...
     
     def _apply_resize(self, image, target_w, target_h, resize_mode, interpolation):
         """Apply the actual resizing with specified method"""
@@ -462,11 +542,4 @@ class ApexSmartResize:
         
         return result
 
-# Node mappings for ComfyUI
-NODE_CLASS_MAPPINGS = {
-    "ApexSmartResize": ApexSmartResize
-}
-
-NODE_DISPLAY_NAME_MAPPINGS = {
-    "ApexSmartResize": "Apex Smart Resize"
-}
+# Remove the old NODE_CLASS_MAPPINGS from here since it's now in __init__.py
