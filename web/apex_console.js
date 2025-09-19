@@ -1,5 +1,12 @@
 import { app } from "../../scripts/app.js";
 
+// Load CSS
+const cssLink = document.createElement("link");
+cssLink.rel = "stylesheet";
+cssLink.href = "./extensions/comfyui-apex-artist/web/apex_console.css";
+document.head.appendChild(cssLink);
+
+
 // Register the console widget
 app.registerExtension({
     name: "ApexArtist.Console",
