@@ -1,111 +1,118 @@
-.apex-console {
-    background: linear-gradient(135deg, #0d1117 0%, #161b22 50%, #0d1117 100%);
-    color: #00ff41;
-    font-family: 'Fira Code', 'JetBrains Mono', 'Consolas', 'Monaco', 'Courier New', monospace;
-    font-size: 11px;
-    font-weight: 400;
-    border: 2px solid #00ff41;
-    border-radius: 12px;
+/* Embedded console styling */
+.apex-console-embedded {
+    background: linear-gradient(135deg, #0d1117 0%, #161b22 50%, #0d1117 100%) !important;
+    color: #00ff41 !important;
+    font-family: 'Fira Code', 'JetBrains Mono', 'Consolas', 'Monaco', 'Courier New', monospace !important;
+    font-size: 10px !important;
+    font-weight: 400 !important;
+    line-height: 1.4 !important;
+    border: 1px solid #00ff41 !important;
+    border-radius: 8px !important;
+    padding: 12px !important;
+    margin: 4px 0 !important;
+    resize: vertical !important;
+    min-height: 120px !important;
+    max-height: 500px !important;
+    white-space: pre-wrap !important;
+    overflow-y: auto !important;
     box-shadow: 
-        0 0 30px rgba(0, 255, 65, 0.4),
-        inset 0 0 30px rgba(0, 0, 0, 0.8);
-    overflow: hidden;
-    position: relative;
-    backdrop-filter: blur(5px);
+        0 0 20px rgba(0, 255, 65, 0.3),
+        inset 0 0 20px rgba(0, 0, 0, 0.8) !important;
+    backdrop-filter: blur(2px) !important;
+    transition: all 0.3s ease !important;
 }
 
-.apex-console-content {
-    padding: 15px;
-    height: 100%;
-    overflow-y: auto;
-    white-space: pre-wrap;
-    line-height: 1.5;
+.apex-console-embedded:focus {
+    outline: none !important;
+    box-shadow: 
+        0 0 25px rgba(0, 255, 65, 0.5),
+        inset 0 0 25px rgba(0, 0, 0, 0.9) !important;
+    border-color: #00ff88 !important;
 }
 
-.apex-timestamp {
-    color: #666;
-    font-size: 9px;
-    opacity: 0.8;
+.apex-console-embedded::-webkit-scrollbar {
+    width: 6px !important;
 }
 
-.apex-log-icon {
-    font-size: 13px;
-    margin-right: 5px;
-    text-shadow: 0 0 5px currentColor;
+.apex-console-embedded::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.3) !important;
+    border-radius: 3px !important;
 }
 
-.apex-data-icon {
-    color: #00ff88;
-    font-size: 12px;
-    margin-right: 3px;
+.apex-console-embedded::-webkit-scrollbar-thumb {
+    background: rgba(0, 255, 65, 0.6) !important;
+    border-radius: 3px !important;
 }
 
-.apex-separator {
-    color: #00ff41;
-    font-weight: bold;
-    text-shadow: 0 0 5px #00ff41;
+.apex-console-embedded::-webkit-scrollbar-thumb:hover {
+    background: rgba(0, 255, 65, 0.8) !important;
 }
 
-.apex-divider {
-    color: #00cc33;
-    opacity: 0.7;
+.apex-console-embedded::placeholder {
+    color: #666 !important;
+    font-style: italic !important;
+    opacity: 0.7 !important;
 }
 
-/* Theme: Matrix (Default) */
-.apex-console.theme-matrix {
-    background: linear-gradient(135deg, #001100 0%, #003300 50%, #001100 100%);
-    color: #00ff41;
-    border-color: #00ff41;
-    box-shadow: 0 0 30px rgba(0, 255, 65, 0.5);
+/* ComfyUI widget label styling for console */
+.comfy-widget-label {
+    font-size: 12px !important;
+    margin-bottom: 4px !important;
 }
 
-/* Theme: Cyberpunk */
-.apex-console.theme-cyberpunk {
-    background: linear-gradient(135deg, #0a0a0a 0%, #1a0a1a 50%, #0a0a1a 100%);
-    color: #ff00ff;
-    border-color: #ff00ff;
-    box-shadow: 0 0 30px rgba(255, 0, 255, 0.5);
+/* Node title styling when console is active */
+.comfy-node.has-console .comfy-node-title {
+    background: linear-gradient(90deg, #0d1117, #00ff41) !important;
+    color: #00ff41 !important;
 }
 
-.apex-console.theme-cyberpunk .apex-data-icon {
-    color: #00ffff;
+/* Responsive console sizing */
+@media (max-width: 1200px) {
+    .apex-console-embedded {
+        font-size: 9px !important;
+        padding: 8px !important;
+        min-height: 100px !important;
+    }
 }
 
-/* Theme: Classic */
-.apex-console.theme-classic {
-    background: #000000;
-    color: #00ff00;
-    border-color: #00ff00;
-    font-family: 'Courier New', monospace;
-    box-shadow: 0 0 20px rgba(0, 255, 0, 0.4);
+/* Theme-specific scrollbar colors */
+.apex-console-embedded.theme-cyberpunk::-webkit-scrollbar-thumb {
+    background: rgba(255, 0, 255, 0.6) !important;
 }
 
-/* Theme: Dracula */
-.apex-console.theme-dracula {
-    background: linear-gradient(135deg, #282a36 0%, #44475a 50%, #282a36 100%);
-    color: #f8f8f2;
-    border-color: #bd93f9;
-    box-shadow: 0 0 30px rgba(189, 147, 249, 0.4);
+.apex-console-embedded.theme-classic::-webkit-scrollbar-thumb {
+    background: rgba(0, 255, 0, 0.6) !important;
 }
 
-.apex-console.theme-dracula .apex-data-icon {
-    color: #50fa7b;
+.apex-console-embedded.theme-dracula::-webkit-scrollbar-thumb {
+    background: rgba(189, 147, 249, 0.6) !important;
 }
 
-/* Scrollbar styling */
-.apex-console-content::-webkit-scrollbar {
-    width: 8px;
+/* Improved text selection */
+.apex-console-embedded::selection {
+    background: rgba(0, 255, 65, 0.3) !important;
+    color: #ffffff !important;
 }
 
-.apex-console-content::-webkit-scrollbar-track {
-    background: rgba(0, 0, 0, 0.3);
+/* Animation for console updates */
+@keyframes consoleUpdate {
+    0% { 
+        box-shadow: 
+            0 0 20px rgba(0, 255, 65, 0.3),
+            inset 0 0 20px rgba(0, 0, 0, 0.8);
+    }
+    50% { 
+        box-shadow: 
+            0 0 30px rgba(0, 255, 65, 0.6),
+            inset 0 0 30px rgba(0, 0, 0, 0.9);
+    }
+    100% { 
+        box-shadow: 
+            0 0 20px rgba(0, 255, 65, 0.3),
+            inset 0 0 20px rgba(0, 0, 0, 0.8);
+    }
 }
 
-.apex-console-content::-webkit-scrollbar-thumb {
-    background: rgba(0, 255, 65, 0.6);
-    border-radius: 4px;
-}
-
-.apex-console-content::-webkit-scrollbar-thumb:hover {
-    background: rgba(0, 255, 65, 0.8);
+.apex-console-embedded.updating {
+    animation: consoleUpdate 0.5s ease-in-out !important;
 }
