@@ -2,7 +2,7 @@
 """
 Apex_Resize.py - Smart resolution snapping for AI compatibility
 YouTube Channel: Apex Artist
-Auto-snap to optimal resolutions like Qwen image editor
+Auto-snap to optimal resolutions with intelligent scaling
 """
 import torch
 import torch.nn.functional as F
@@ -11,42 +11,42 @@ import math
 class ApexSmartResize:
     """
     Apex Smart Resize - Automatically snaps to closest compatible resolution
-    Replicates Qwen's intelligent resolution detection and scaling
+    Intelligent resolution detection and scaling with proportion preservation
     """
     
     def __init__(self):
         # Define compatible resolutions for different AI models
         self.resolution_sets = {
-            "SDXL_Standard": [
+            "Standard": [
                 (1024, 1024), (1152, 896), (896, 1152), (1216, 832), (832, 1216),
                 (1344, 768), (768, 1344), (1536, 640), (640, 1536), 
                 (832, 1280), (1280, 832), (704, 1504), (1504, 704),
                 (896, 1344), (1344, 896), (960, 1280), (1280, 960),
                 (512, 512), (768, 768), (640, 640)
             ],
-            "SDXL_Extended": [
+            "Extended": [
                 (1024, 1024), (1152, 896), (896, 1152), (1216, 832), (832, 1216),
                 (1344, 768), (768, 1344), (1536, 640), (640, 1536), (1728, 576),
                 (576, 1728), (1920, 512), (512, 1920), (2048, 512), (512, 2048),
                 (832, 1280), (1280, 832), (704, 1504), (1504, 704),
                 (960, 1536), (1536, 960), (1088, 1472), (1472, 1088)
             ],
-            "Flux_Standard": [
+            "Flux": [
                 (1024, 1024), (768, 1344), (832, 1216), (896, 1152), (1152, 896),
                 (1216, 832), (1344, 768), (512, 512), (640, 1536), (1536, 640),
                 (704, 1504), (1504, 704), (832, 1280), (1280, 832)
             ],
-            "Portrait_Optimized": [
+            "Portrait": [
                 (832, 1216), (768, 1344), (640, 1536), (896, 1152), 
                 (832, 1280), (704, 1504), (512, 768), (576, 1024),
                 (640, 960), (720, 1280), (768, 1024), (896, 1344)
             ],
-            "Landscape_Optimized": [
+            "Landscape": [
                 (1216, 832), (1344, 768), (1536, 640), (1152, 896),
                 (1280, 832), (1504, 704), (768, 512), (1024, 576),
                 (960, 640), (1280, 720), (1024, 768), (1344, 896)
             ],
-            "Square_Only": [
+            "Square": [
                 (512, 512), (640, 640), (768, 768), (832, 832), (896, 896),
                 (1024, 1024), (1152, 1152), (1216, 1216), (1280, 1280), (1344, 1344)
             ]
@@ -58,20 +58,20 @@ class ApexSmartResize:
             "required": {
                 "image": ("IMAGE",),
                 "resolution_set": ([
-                    "SDXL_Standard",
-                    "SDXL_Extended", 
-                    "Flux_Standard",
-                    "Portrait_Optimized",
-                    "Landscape_Optimized",
-                    "Square_Only"
-                ], {"default": "SDXL_Standard"}),
+                    "Standard",      # Core SDXL/Flux resolutions
+                    "Extended",      # Extra experimental sizes  
+                    "Flux",          # Flux-optimized
+                    "Portrait",      # Tall formats
+                    "Landscape",     # Wide formats
+                    "Square"         # Square only
+                ], {"default": "Standard"}),
                 "snap_method": ([
-                    "qwen_style",        # Qwen's algorithm - scale largest side first
+                    "keep_proportion",   # Scale largest side first, maintain aspect ratio
                     "closest_area",      # Snap to closest total pixel count
                     "closest_ratio",     # Snap to closest aspect ratio
                     "prefer_larger",     # Prefer larger resolutions
                     "prefer_smaller",    # Prefer smaller resolutions
-                ], {"default": "qwen_style"}),
+                ], {"default": "keep_proportion"}),
                 "resize_mode": ([
                     "stretch",           # Stretch to exact dimensions
                     "crop_center",       # Crop from center
@@ -139,8 +139,8 @@ class ApexSmartResize:
         orig_area = orig_w * orig_h
         orig_aspect = orig_w / orig_h
         
-        if snap_method == "qwen_style":
-            return self._qwen_style_snap(orig_w, orig_h, resolutions, show_candidates)
+        if snap_method == "keep_proportion":
+            return self._keep_proportion_snap(orig_w, orig_h, resolutions, show_candidates)
         
         # Other methods
         candidates = []
@@ -204,8 +204,8 @@ class ApexSmartResize:
         target_w, target_h = best['resolution']
         return target_w, target_h, info
     
-    def _qwen_style_snap(self, orig_w, orig_h, resolutions, show_candidates):
-        """Replicate Qwen's scaling algorithm"""
+    def _keep_proportion_snap(self, orig_w, orig_h, resolutions, show_candidates):
+        """Scale by largest dimension while maintaining aspect ratio"""
         
         orig_aspect = orig_w / orig_h
         is_portrait = orig_h > orig_w
@@ -282,7 +282,7 @@ class ApexSmartResize:
         
         # Show candidates if requested
         if show_candidates and candidates:
-            print("🏆 Qwen-style candidates:")
+            print("🏆 Keep Proportion candidates:")
             sorted_candidates = sorted(candidates, key=lambda x: x['score'])[:5]
             for i, c in enumerate(sorted_candidates):
                 w, h = c['resolution']
@@ -290,7 +290,7 @@ class ApexSmartResize:
                 print(f"{marker} {w}x{h} (scale: {c['scale_factor']:.2f}x, aspect_diff: {c['aspect_diff']:.3f})")
         
         target_w, target_h = best_match
-        info = f"Qwen-style snap from {len(resolutions)} resolutions"
+        info = f"Keep proportion snap from {len(resolutions)} resolutions"
         
         return target_w, target_h, info
     
