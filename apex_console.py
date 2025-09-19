@@ -1,178 +1,263 @@
 import json
 import datetime
-import os
+import torch
+import numpy as np
 
 class ApexConsole:
     @classmethod
     def INPUT_TYPES(cls):
         return {
-            "required": {},
+            "required": {
+                "input_data": ("*", {}),  # Universal input - accepts ANY type
+            },
             "optional": {
-                "string_input": ("STRING", {"forceInput": True, "default": ""}),
-                "int_input": ("INT", {"forceInput": True, "default": 0}),
-                "float_input": ("FLOAT", {"forceInput": True, "default": 0.0}),
-                "boolean_input": ("BOOLEAN", {"forceInput": True, "default": False}),
-                "image_input": ("IMAGE", {"forceInput": True}),
-                "latent_input": ("LATENT", {"forceInput": True}),
-                "conditioning_input": ("CONDITIONING", {"forceInput": True}),
-                "model_input": ("MODEL", {"forceInput": True}),
-                
                 "custom_label": ("STRING", {"default": "APEX CONSOLE"}),
                 "log_level": (["DEBUG", "INFO", "WARNING", "ERROR", "SUCCESS"], {"default": "INFO"}),
-                "auto_scroll": ("BOOLEAN", {"default": True}),
                 "show_timestamp": ("BOOLEAN", {"default": True}),
-                "max_lines": ("INT", {"default": 50, "min": 10, "max": 200}),
-                "clear_on_run": ("BOOLEAN", {"default": True}),
-                "theme": (["matrix", "cyberpunk", "classic", "dracula"], {"default": "matrix"}),
+                "max_lines": ("INT", {"default": 30, "min": 10, "max": 100}),
+                "theme": (["matrix", "cyberpunk", "classic", "dracula", "neon"], {"default": "matrix"}),
+                "auto_scroll": ("BOOLEAN", {"default": True}),
+                "detailed_info": ("BOOLEAN", {"default": True}),
             }
         }
     
-    # Remove return types to prevent Preview Any connection
     RETURN_TYPES = ()
     RETURN_NAMES = ()
     
     FUNCTION = "display_console"
-    OUTPUT_NODE = True  # Makes it a terminal/display node
+    OUTPUT_NODE = True
     CATEGORY = "Apex Artist/Console"
     
     def get_log_emoji(self, log_level: str) -> str:
         """Get emoji for log level"""
         emojis = {
-            "DEBUG": "🔍",
-            "INFO": "ℹ️", 
-            "WARNING": "⚠️",
-            "ERROR": "❌",
-            "SUCCESS": "✅"
+            "DEBUG": "🔍", "INFO": "ℹ️", "WARNING": "⚠️", 
+            "ERROR": "❌", "SUCCESS": "✅"
         }
         return emojis.get(log_level, "📝")
     
-    def format_data_with_emoji(self, data_type: str, value) -> str:
-        """Format data with appropriate emoji and styling"""
-        
-        if data_type == "string" and value:
-            try:
-                # Try to parse as JSON for pretty formatting
-                json_data = json.loads(value)
-                formatted = json.dumps(json_data, indent=2)
-                return f"📝 JSON Data:\n{formatted}"
-            except:
-                return f"📝 Text: {value}"
+    def analyze_any_data(self, data, detailed=True):
+        """Analyze any type of data and return formatted info"""
+        try:
+            data_type = type(data).__name__
+            
+            # STRING DATA
+            if isinstance(data, str):
+                if not data:
+                    return "📝 Empty String"
                 
-        elif data_type == "int" and value != 0:
-            return f"🔢 Integer: {value:,}"
+                # Try JSON parsing
+                try:
+                    json_data = json.loads(data)
+                    if detailed:
+                        formatted = json.dumps(json_data, indent=2)
+                        return f"📝 JSON String ({len(data)} chars):\n{formatted}"
+                    else:
+                        return f"📝 JSON String ({len(data)} chars)"
+                except:
+                    if len(data) > 100 and detailed:
+                        return f"📝 Text String ({len(data)} chars):\n{data[:100]}..."
+                    else:
+                        return f"📝 Text String: {data}"
             
-        elif data_type == "float" and value != 0.0:
-            return f"📊 Float: {value:.6f}"
+            # NUMERIC DATA
+            elif isinstance(data, (int, float)):
+                if isinstance(data, int):
+                    return f"🔢 Integer: {data:,}"
+                else:
+                    return f"📊 Float: {data:.6f}"
             
-        elif data_type == "boolean":
-            status = "✅ TRUE" if value else "❌ FALSE"
-            return f"🔘 Boolean: {status}"
+            # BOOLEAN DATA
+            elif isinstance(data, bool):
+                status = "✅ TRUE" if data else "❌ FALSE"
+                return f"🔘 Boolean: {status}"
             
-        elif data_type == "image" and value is not None:
-            if hasattr(value, 'shape') and len(value.shape) >= 3:
-                h, w = value.shape[1], value.shape[2]
-                memory_mb = (w * h * 3 * 4) / (1024 * 1024)
-                return f"🖼️ Image: {w}×{h} pixels | ~{memory_mb:.1f}MB"
+            # TENSOR DATA (PyTorch)
+            elif isinstance(data, torch.Tensor):
+                shape = tuple(data.shape)
+                dtype = str(data.dtype)
+                device = str(data.device)
+                size_mb = data.element_size() * data.nelement() / (1024 * 1024)
+                
+                if detailed:
+                    return f"🎨 Tensor: {shape}\n   Type: {dtype} | Device: {device}\n   Memory: ~{size_mb:.1f}MB"
+                else:
+                    return f"🎨 Tensor: {shape} | {dtype} | ~{size_mb:.1f}MB"
+            
+            # NUMPY ARRAY
+            elif isinstance(data, np.ndarray):
+                shape = data.shape
+                dtype = str(data.dtype)
+                size_mb = data.nbytes / (1024 * 1024)
+                
+                if detailed:
+                    return f"🖼️ NumPy Array: {shape}\n   Type: {dtype} | Memory: ~{size_mb:.1f}MB"
+                else:
+                    return f"🖼️ Array: {shape} | {dtype}"
+            
+            # LIST DATA
+            elif isinstance(data, list):
+                length = len(data)
+                if length == 0:
+                    return "📋 Empty List"
+                
+                # Check if it's a list of tensors (common in ComfyUI)
+                if length > 0 and isinstance(data[0], torch.Tensor):
+                    first_shape = tuple(data[0].shape)
+                    return f"📋 Tensor List: {length} items | Shape: {first_shape}"
+                else:
+                    if detailed and length <= 5:
+                        items_preview = ", ".join([str(item)[:20] for item in data[:3]])
+                        if length > 3:
+                            items_preview += "..."
+                        return f"📋 List ({length} items): [{items_preview}]"
+                    else:
+                        return f"📋 List: {length} items"
+            
+            # DICTIONARY DATA
+            elif isinstance(data, dict):
+                keys = list(data.keys())
+                
+                # Special handling for ComfyUI data structures
+                if 'samples' in data and isinstance(data['samples'], torch.Tensor):
+                    # Latent space data
+                    shape = tuple(data['samples'].shape)
+                    return f"🎨 Latent Space: {shape} | Batch: {shape[0]}"
+                
+                elif all(key in data for key in ['model', 'clip', 'vae']):
+                    # Model bundle
+                    return f"🤖 Model Bundle: {', '.join(keys)}"
+                
+                elif 'cond' in str(keys).lower():
+                    # Conditioning data
+                    return f"🎛️ Conditioning: {len(keys)} components"
+                
+                else:
+                    if detailed and len(keys) <= 10:
+                        keys_str = ", ".join([str(k)[:15] for k in keys[:5]])
+                        if len(keys) > 5:
+                            keys_str += f"... (+{len(keys)-5} more)"
+                        return f"📊 Dictionary ({len(keys)} keys):\n   {keys_str}"
+                    else:
+                        return f"📊 Dictionary: {len(keys)} keys"
+            
+            # TUPLE DATA
+            elif isinstance(data, tuple):
+                return f"📦 Tuple: {len(data)} items | {tuple(type(item).__name__ for item in data[:3])}"
+            
+            # UNKNOWN/CUSTOM OBJECTS
             else:
-                return f"🖼️ Image data received"
+                # Try to get useful info about the object
+                attrs = []
+                if hasattr(data, 'shape'):
+                    attrs.append(f"shape: {getattr(data, 'shape')}")
+                if hasattr(data, '__len__'):
+                    try:
+                        attrs.append(f"length: {len(data)}")
+                    except:
+                        pass
                 
-        elif data_type == "latent" and value is not None:
-            if isinstance(value, dict) and 'samples' in value:
-                shape = value['samples'].shape
-                return f"🎨 Latent: {shape} | Batch: {shape[0]} | Channels: {shape[1]}"
-            else:
-                return f"🎨 Latent data received"
+                attr_str = " | ".join(attrs) if attrs else "unknown structure"
+                return f"🔧 {data_type}: {attr_str}"
                 
-        elif data_type == "conditioning" and value is not None:
-            if isinstance(value, list) and len(value) > 0:
-                return f"🎛️ Conditioning: {len(value)} items"
-            else:
-                return f"🎛️ Conditioning data received"
-                
-        elif data_type == "model" and value is not None:
-            return f"🤖 Model data received"
-            
-        return None  # Skip empty/default values
+        except Exception as e:
+            return f"❌ Analysis Error: {str(e)}"
     
-    def display_console(self, **kwargs):
+    def display_console(self, input_data, **kwargs):
         """Main console display function"""
         
-        # Get settings
-        custom_label = kwargs.get('custom_label', 'APEX CONSOLE')
-        log_level = kwargs.get('log_level', 'INFO')
-        show_timestamp = kwargs.get('show_timestamp', True)
-        theme = kwargs.get('theme', 'matrix')
-        max_lines = kwargs.get('max_lines', 50)
-        
-        # Build console output
-        console_lines = []
-        
-        # Header
-        console_lines.append("=" * 60)
-        console_lines.append(f"🎯 {custom_label}")
-        console_lines.append("=" * 60)
-        
-        # Process each input type
-        data_count = 0
-        input_types = ['string', 'int', 'float', 'boolean', 'image', 'latent', 'conditioning', 'model']
-        
-        for data_type in input_types:
-            input_key = f"{data_type}_input"
-            value = kwargs.get(input_key)
+        try:
+            # Get settings
+            custom_label = kwargs.get('custom_label', 'APEX CONSOLE')
+            log_level = kwargs.get('log_level', 'INFO')
+            show_timestamp = kwargs.get('show_timestamp', True)
+            theme = kwargs.get('theme', 'matrix')
+            max_lines = kwargs.get('max_lines', 30)
+            detailed_info = kwargs.get('detailed_info', True)
             
-            # Format the data
-            formatted_data = self.format_data_with_emoji(data_type, value)
+            # Build console output
+            console_lines = []
             
-            if formatted_data:  # Only add if we have actual data
-                data_count += 1
+            # Header
+            console_lines.append(f"🎯 {custom_label}")
+            console_lines.append("═" * 45)
+            
+            # Timestamp
+            if show_timestamp:
+                timestamp = datetime.datetime.now().strftime("%H:%M:%S.%f")[:-3]
+                console_lines.append(f"⏰ {timestamp}")
+                console_lines.append("")
+            
+            # Analyze the input data
+            emoji = self.get_log_emoji(log_level)
+            analysis = self.analyze_any_data(input_data, detailed_info)
+            
+            # Add analysis to console
+            console_lines.append(f"{emoji} Data Analysis:")
+            console_lines.append(f"{analysis}")
+            
+            # Additional metadata
+            console_lines.append("")
+            console_lines.append("─" * 45)
+            
+            # Memory info for large objects
+            try:
+                import sys
+                size_bytes = sys.getsizeof(input_data)
+                if hasattr(input_data, 'nbytes'):  # numpy
+                    size_bytes = input_data.nbytes
+                elif hasattr(input_data, 'element_size') and hasattr(input_data, 'nelement'):  # torch
+                    size_bytes = input_data.element_size() * input_data.nelement()
                 
-                # Add timestamp if enabled
-                if show_timestamp:
-                    timestamp = datetime.datetime.now().strftime("%H:%M:%S.%f")[:-3]
-                    time_part = f"⏰ {timestamp}"
+                if size_bytes > 1024:
+                    size_mb = size_bytes / (1024 * 1024)
+                    console_lines.append(f"💾 Memory: ~{size_mb:.2f}MB")
                 else:
-                    time_part = ""
-                
-                # Get log level emoji
-                emoji = self.get_log_emoji(log_level)
-                
-                # Build the line
-                if time_part:
-                    line = f"{time_part} {emoji} {formatted_data}"
-                else:
-                    line = f"{emoji} {formatted_data}"
-                    
-                console_lines.append(line)
-        
-        # Footer
-        console_lines.append("─" * 60)
-        if data_count > 0:
-            console_lines.append(f"📊 Processed {data_count} data inputs")
-            console_lines.append(f"🎨 Theme: {theme.title()} | 📅 {datetime.datetime.now().strftime('%Y-%m-%d')}")
-        else:
-            console_lines.append("💤 No active data inputs")
-            console_lines.append("🔌 Connect nodes to display console output")
-        
-        console_lines.append("=" * 60)
-        
-        # Limit lines if needed
-        if len(console_lines) > max_lines:
-            console_lines = ["⚠️ Output truncated to max lines..."] + console_lines[-max_lines:]
-        
-        # Join all lines
-        console_output = "\n".join(console_lines)
-        
-        # Print to ComfyUI terminal for debugging
-        print(f"\n🎯 APEX CONSOLE OUTPUT:\n{console_output}\n")
-        
-        # Return UI data only (no regular outputs to prevent Preview Any)
-        return {
-            "ui": {
-                "console_text": [console_output],
-                "theme": [theme],
-                "timestamp": [datetime.datetime.now().isoformat()]
+                    console_lines.append(f"💾 Memory: {size_bytes} bytes")
+            except:
+                console_lines.append("💾 Memory: Unknown")
+            
+            # Python type info
+            console_lines.append(f"🐍 Type: {type(input_data).__module__}.{type(input_data).__name__}")
+            
+            # Theme and settings
+            console_lines.append(f"🎨 Theme: {theme.title()}")
+            
+            console_lines.append("═" * 45)
+            
+            # Limit output length
+            if len(console_lines) > max_lines:
+                console_lines = console_lines[:2] + ["⚠️ Output truncated..."] + console_lines[-max_lines+3:]
+            
+            console_output = "\n".join(console_lines)
+            
+            # Debug print
+            print(f"\n🎯 APEX CONSOLE:\n{console_output}\n")
+            
+            return {
+                "ui": {
+                    "console_text": [console_output],
+                    "theme": [theme],
+                    "timestamp": [datetime.datetime.now().isoformat()],
+                    "data_type": [type(input_data).__name__]
+                }
             }
-        }
+            
+        except Exception as e:
+            error_output = f"""🎯 {kwargs.get('custom_label', 'APEX CONSOLE')}
+═════════════════════════════════════════════
+❌ CONSOLE ERROR
+{str(e)}
+═════════════════════════════════════════════"""
+            
+            return {
+                "ui": {
+                    "console_text": [error_output],
+                    "theme": [kwargs.get('theme', 'matrix')],
+                    "timestamp": [datetime.datetime.now().isoformat()],
+                    "data_type": ["Error"]
+                }
+            }
 
 # Node mappings
 NODE_CLASS_MAPPINGS = {
