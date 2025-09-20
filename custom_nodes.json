@@ -1,0 +1,19 @@
+{
+    "apex-artist-nodes": {
+        "title": "Apex Artist Nodes",
+        "description": "Professional image processing nodes for ComfyUI designed for AI artists and creators",
+        "version": "1.1.0",
+        "author": "Apex Artist",
+        "repository": "https://github.com/ApexArtist/comfyui-apex-artist",
+        "tags": ["image processing", "color grading", "resize", "depth map"],
+        "nodes": [
+            "Apex Smart Resize",
+            "Apex RGB Curves",
+            "Apex Depth to Normal"
+        ],
+        "install_type": "git",
+        "files": [
+            "https://github.com/ApexArtist/comfyui-apex-artist"
+        ]
+    }
+}
