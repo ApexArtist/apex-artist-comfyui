@@ -1,316 +1,413 @@
-#!/usr/bin/env python3
-"""
-Apex_RGB_Curve.py - Professional RGB curve color adjustment
-YouTube Channel: Apex Artist
-Individual and master RGB curve controls with multiple blend modes
-"""
-import torch
-import torch.nn.functional as F
-import math
+import React, { useState, useRef, useCallback, useEffect } from 'react';
 
-class ApexRGBCurve:
-    """
-    Apex RGB Curve - Professional color grading with individual RGB channel curves
-    Supports master curve, individual R/G/B curves, and multiple blend modes
-    """
+const ApexCurveEditor = () => {
+  const svgRef = useRef(null);
+  const [activeChannel, setActiveChannel] = useState('master');
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragPointIndex, setDragPointIndex] = useState(-1);
+  
+  // Curve points for each channel (x, y coordinates in 0-255 range)
+  const [curves, setCurves] = useState({
+    master: [[0, 0], [64, 64], [128, 128], [192, 192], [255, 255]],
+    red: [[0, 0], [64, 64], [128, 128], [192, 192], [255, 255]],
+    green: [[0, 0], [64, 64], [128, 128], [192, 192], [255, 255]],
+    blue: [[0, 0], [64, 64], [128, 128], [192, 192], [255, 255]]
+  });
+
+  const [previewSettings, setPreviewSettings] = useState({
+    blendMode: 'normal',
+    opacity: 1.0,
+    preserveLuminance: false,
+    showHistogram: true
+  });
+
+  const chartSize = 300;
+  const padding = 40;
+
+  // Convert curve coordinates to SVG coordinates
+  const toSVG = useCallback((x, y) => {
+    return {
+      x: padding + (x / 255) * chartSize,
+      y: padding + chartSize - (y / 255) * chartSize
+    };
+  }, []);
+
+  // Convert SVG coordinates back to curve coordinates
+  const fromSVG = useCallback((svgX, svgY) => {
+    return {
+      x: Math.max(0, Math.min(255, ((svgX - padding) / chartSize) * 255)),
+      y: Math.max(0, Math.min(255, ((padding + chartSize - svgY) / chartSize) * 255))
+    };
+  }, []);
+
+  // Generate smooth curve path using cubic bezier
+  const generateCurvePath = useCallback((points) => {
+    if (points.length < 2) return '';
     
-    def __init__(self):
-        # Curve presets for quick access
-        self.curve_presets = {
-            "linear": [0, 64, 128, 192, 255],
-            "slight_s": [0, 48, 128, 208, 255],
-            "strong_s": [0, 32, 128, 224, 255],
-            "brighten": [0, 80, 160, 224, 255],
-            "darken": [0, 32, 96, 176, 255],
-            "contrast": [0, 40, 128, 216, 255],
-            "low_contrast": [0, 76, 128, 180, 255],
-            "film_look": [16, 60, 140, 200, 240],
-            "vintage": [20, 80, 120, 180, 235],
-            "crushed_blacks": [32, 80, 128, 192, 255],
-            "lifted_blacks": [0, 96, 144, 200, 255]
+    let path = '';
+    const svgPoints = points.map(([x, y]) => toSVG(x, y));
+    
+    path += `M ${svgPoints[0].x} ${svgPoints[0].y}`;
+    
+    for (let i = 1; i < svgPoints.length; i++) {
+      const prev = svgPoints[i - 1];
+      const curr = svgPoints[i];
+      const next = svgPoints[i + 1];
+      
+      if (i === 1) {
+        // First curve segment
+        const cp1x = prev.x + (curr.x - prev.x) * 0.3;
+        const cp1y = prev.y;
+        const cp2x = curr.x - (curr.x - prev.x) * 0.3;
+        const cp2y = curr.y;
+        path += ` C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${curr.x} ${curr.y}`;
+      } else if (i === svgPoints.length - 1) {
+        // Last curve segment
+        const cp1x = prev.x + (curr.x - prev.x) * 0.3;
+        const cp1y = prev.y;
+        const cp2x = curr.x - (curr.x - prev.x) * 0.3;
+        const cp2y = curr.y;
+        path += ` C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${curr.x} ${curr.y}`;
+      } else {
+        // Middle segments with smooth transitions
+        const prevDx = curr.x - svgPoints[i - 2].x;
+        const prevDy = curr.y - svgPoints[i - 2].y;
+        const nextDx = next.x - prev.x;
+        const nextDy = next.y - prev.y;
+        
+        const cp1x = prev.x + prevDx * 0.2;
+        const cp1y = prev.y + prevDy * 0.2;
+        const cp2x = curr.x - nextDx * 0.2;
+        const cp2y = curr.y - nextDy * 0.2;
+        
+        path += ` C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${curr.x} ${curr.y}`;
+      }
+    }
+    
+    return path;
+  }, [toSVG]);
+
+  // Handle mouse events for dragging points
+  const handleMouseDown = useCallback((e, pointIndex) => {
+    e.preventDefault();
+    setIsDragging(true);
+    setDragPointIndex(pointIndex);
+  }, []);
+
+  const handleMouseMove = useCallback((e) => {
+    if (!isDragging || dragPointIndex === -1) return;
+    
+    const rect = svgRef.current.getBoundingClientRect();
+    const svgX = e.clientX - rect.left;
+    const svgY = e.clientY - rect.top;
+    const newPos = fromSVG(svgX, svgY);
+    
+    setCurves(prev => {
+      const newCurves = { ...prev };
+      const currentCurve = [...newCurves[activeChannel]];
+      
+      // Constrain X position based on neighboring points
+      if (dragPointIndex > 0 && dragPointIndex < currentCurve.length - 1) {
+        const minX = currentCurve[dragPointIndex - 1][0] + 1;
+        const maxX = currentCurve[dragPointIndex + 1][0] - 1;
+        newPos.x = Math.max(minX, Math.min(maxX, newPos.x));
+      } else if (dragPointIndex === 0) {
+        newPos.x = 0; // Lock first point X
+      } else if (dragPointIndex === currentCurve.length - 1) {
+        newPos.x = 255; // Lock last point X
+      }
+      
+      currentCurve[dragPointIndex] = [Math.round(newPos.x), Math.round(newPos.y)];
+      newCurves[activeChannel] = currentCurve;
+      
+      return newCurves;
+    });
+  }, [isDragging, dragPointIndex, activeChannel, fromSVG]);
+
+  const handleMouseUp = useCallback(() => {
+    setIsDragging(false);
+    setDragPointIndex(-1);
+  }, []);
+
+  // Add point on curve click
+  const handleCurveClick = useCallback((e) => {
+    if (isDragging) return;
+    
+    const rect = svgRef.current.getBoundingClientRect();
+    const svgX = e.clientX - rect.left;
+    const svgY = e.clientY - rect.top;
+    const newPos = fromSVG(svgX, svgY);
+    
+    setCurves(prev => {
+      const newCurves = { ...prev };
+      const currentCurve = [...newCurves[activeChannel]];
+      
+      // Find insertion point
+      let insertIndex = currentCurve.length;
+      for (let i = 0; i < currentCurve.length; i++) {
+        if (newPos.x < currentCurve[i][0]) {
+          insertIndex = i;
+          break;
         }
-    
-    @classmethod
-    def INPUT_TYPES(cls):
-        preset_options = list(cls().curve_presets.keys())
-        
-        return {
-            "required": {
-                "image": ("IMAGE",),
-                
-                # Master curve controls
-                "master_preset": (preset_options, {"default": "linear"}),
-                "master_shadows": ("INT", {"default": 0, "min": 0, "max": 255, "step": 1}),
-                "master_darks": ("INT", {"default": 64, "min": 0, "max": 255, "step": 1}),
-                "master_mids": ("INT", {"default": 128, "min": 0, "max": 255, "step": 1}),
-                "master_lights": ("INT", {"default": 192, "min": 0, "max": 255, "step": 1}),
-                "master_highlights": ("INT", {"default": 255, "min": 0, "max": 255, "step": 1}),
-                
-                # Red channel
-                "red_preset": (preset_options, {"default": "linear"}),
-                "red_shadows": ("INT", {"default": 0, "min": 0, "max": 255, "step": 1}),
-                "red_darks": ("INT", {"default": 64, "min": 0, "max": 255, "step": 1}),
-                "red_mids": ("INT", {"default": 128, "min": 0, "max": 255, "step": 1}),
-                "red_lights": ("INT", {"default": 192, "min": 0, "max": 255, "step": 1}),
-                "red_highlights": ("INT", {"default": 255, "min": 0, "max": 255, "step": 1}),
-                
-                # Green channel
-                "green_preset": (preset_options, {"default": "linear"}),
-                "green_shadows": ("INT", {"default": 0, "min": 0, "max": 255, "step": 1}),
-                "green_darks": ("INT", {"default": 64, "min": 0, "max": 255, "step": 1}),
-                "green_mids": ("INT", {"default": 128, "min": 0, "max": 255, "step": 1}),
-                "green_lights": ("INT", {"default": 192, "min": 0, "max": 255, "step": 1}),
-                "green_highlights": ("INT", {"default": 255, "min": 0, "max": 255, "step": 1}),
-                
-                # Blue channel
-                "blue_preset": (preset_options, {"default": "linear"}),
-                "blue_shadows": ("INT", {"default": 0, "min": 0, "max": 255, "step": 1}),
-                "blue_darks": ("INT", {"default": 64, "min": 0, "max": 255, "step": 1}),
-                "blue_mids": ("INT", {"default": 128, "min": 0, "max": 255, "step": 1}),
-                "blue_lights": ("INT", {"default": 192, "min": 0, "max": 255, "step": 1}),
-                "blue_highlights": ("INT", {"default": 255, "min": 0, "max": 255, "step": 1}),
-                
-                # Blend settings
-                "blend_mode": ([
-                    "normal",
-                    "multiply", 
-                    "screen",
-                    "overlay",
-                    "soft_light",
-                    "hard_light",
-                    "color_dodge",
-                    "color_burn",
-                    "darken",
-                    "lighten"
-                ], {"default": "normal"}),
-                "opacity": ("FLOAT", {"default": 1.0, "min": 0.0, "max": 1.0, "step": 0.01}),
-                
-                # Advanced options
-                "use_preset_override": ("BOOLEAN", {"default": False, "tooltip": "Use preset values instead of manual points"}),
-                "preserve_luminance": ("BOOLEAN", {"default": False, "tooltip": "Apply curves in luminance-preserving mode"}),
-                "curve_smoothing": ("FLOAT", {"default": 0.1, "min": 0.0, "max": 1.0, "step": 0.01, "tooltip": "Smooth curve interpolation"})
-            }
-        }
+      }
+      
+      currentCurve.splice(insertIndex, 0, [Math.round(newPos.x), Math.round(newPos.y)]);
+      newCurves[activeChannel] = currentCurve;
+      
+      return newCurves;
+    });
+  }, [isDragging, activeChannel, fromSVG]);
 
-    RETURN_TYPES = ("IMAGE", "STRING")
-    RETURN_NAMES = ("image", "curve_info")
-    FUNCTION = "apply_rgb_curves"
-    CATEGORY = "Apex Artist/Color"
+  // Remove point (double-click, but not first/last)
+  const handlePointDoubleClick = useCallback((e, pointIndex) => {
+    e.stopPropagation();
+    if (pointIndex === 0 || pointIndex === curves[activeChannel].length - 1) return;
+    
+    setCurves(prev => {
+      const newCurves = { ...prev };
+      const currentCurve = [...newCurves[activeChannel]];
+      currentCurve.splice(pointIndex, 1);
+      newCurves[activeChannel] = currentCurve;
+      return newCurves;
+    });
+  }, [activeChannel, curves]);
 
-    def apply_rgb_curves(self, image, 
-                        master_preset, master_shadows, master_darks, master_mids, master_lights, master_highlights,
-                        red_preset, red_shadows, red_darks, red_mids, red_lights, red_highlights,
-                        green_preset, green_shadows, green_darks, green_mids, green_lights, green_highlights,
-                        blue_preset, blue_shadows, blue_darks, blue_mids, blue_lights, blue_highlights,
-                        blend_mode, opacity, use_preset_override, preserve_luminance, curve_smoothing):
-        
-        try:
-            # Ensure image is in correct format
-            if len(image.shape) == 3:
-                image = image.unsqueeze(0)
-            
-            device = image.device
-            batch_size, height, width, channels = image.shape
-            
-            # Get curve points for each channel
-            if use_preset_override:
-                master_points = self.curve_presets[master_preset]
-                red_points = self.curve_presets[red_preset]
-                green_points = self.curve_presets[green_preset]
-                blue_points = self.curve_presets[blue_preset]
-            else:
-                master_points = [master_shadows, master_darks, master_mids, master_lights, master_highlights]
-                red_points = [red_shadows, red_darks, red_mids, red_lights, red_highlights]
-                green_points = [green_shadows, green_darks, green_mids, green_lights, green_highlights]
-                blue_points = [blue_shadows, blue_darks, blue_mids, blue_lights, blue_highlights]
-            
-            # Create lookup tables for each channel
-            master_lut = self._create_curve_lut(master_points, curve_smoothing, device)
-            red_lut = self._create_curve_lut(red_points, curve_smoothing, device)
-            green_lut = self._create_curve_lut(green_points, curve_smoothing, device)
-            blue_lut = self._create_curve_lut(blue_points, curve_smoothing, device)
-            
-            # Convert to working space (0-1 range)
-            working_image = image.clone()
-            
-            if preserve_luminance:
-                # Apply curves in luminance-preserving mode
-                result_image = self._apply_luminance_preserving_curves(
-                    working_image, master_lut, red_lut, green_lut, blue_lut
-                )
-            else:
-                # Apply curves directly to RGB channels
-                result_image = self._apply_direct_curves(
-                    working_image, master_lut, red_lut, green_lut, blue_lut
-                )
-            
-            # Apply blend mode if not normal
-            if blend_mode != "normal" and opacity > 0:
-                result_image = self._apply_blend_mode(image, result_image, blend_mode, opacity)
-            elif opacity < 1.0:
-                result_image = image * (1.0 - opacity) + result_image * opacity
-            
-            # Clamp values to valid range
-            result_image = torch.clamp(result_image, 0.0, 1.0)
-            
-            # Generate info string
-            curve_info = self._generate_curve_info(
-                master_points, red_points, green_points, blue_points,
-                blend_mode, opacity, preserve_luminance
-            )
-            
-            return (result_image, curve_info)
-            
-        except Exception as e:
-            error_info = f"RGB Curve Error: {str(e)}"
-            return (image, error_info)
+  // Preset curves
+  const applyPreset = useCallback((preset) => {
+    const presets = {
+      linear: [[0, 0], [64, 64], [128, 128], [192, 192], [255, 255]],
+      slight_s: [[0, 0], [48, 32], [128, 128], [208, 224], [255, 255]],
+      strong_s: [[0, 0], [32, 16], [128, 128], [224, 240], [255, 255]],
+      brighten: [[0, 0], [80, 96], [160, 192], [224, 240], [255, 255]],
+      darken: [[0, 0], [32, 16], [96, 64], [176, 144], [255, 255]],
+      contrast: [[0, 0], [40, 16], [128, 128], [216, 240], [255, 255]],
+      low_contrast: [[0, 0], [76, 96], [128, 128], [180, 160], [255, 255]],
+      crushed_blacks: [[0, 32], [80, 80], [128, 128], [192, 192], [255, 255]],
+      lifted_blacks: [[0, 0], [96, 128], [144, 160], [200, 216], [255, 255]]
+    };
     
-    def _create_curve_lut(self, points, smoothing, device):
-        """Create a 256-value lookup table from 5 control points"""
-        
-        # Input positions for the 5 points (0, 64, 128, 192, 255)
-        input_pos = torch.tensor([0, 64, 128, 192, 255], dtype=torch.float32, device=device)
-        output_values = torch.tensor([p / 255.0 for p in points], dtype=torch.float32, device=device)
-        
-        # Create lookup table
-        lut = torch.zeros(256, dtype=torch.float32, device=device)
-        
-        # Create interpolation indices
-        indices = torch.arange(256, dtype=torch.float32, device=device)
-        
-        # Simple linear interpolation
-        for i in range(256):
-            # Find which segment we're in
-            for j in range(len(input_pos) - 1):
-                if input_pos[j] <= i <= input_pos[j + 1]:
-                    # Linear interpolation
-                    if input_pos[j + 1] - input_pos[j] > 0:
-                        t = (i - input_pos[j]) / (input_pos[j + 1] - input_pos[j])
-                        
-                        # Apply smoothing if requested
-                        if smoothing > 0:
-                            t = self._smooth_step(t, smoothing)
-                        
-                        lut[i] = output_values[j] * (1 - t) + output_values[j + 1] * t
-                    else:
-                        lut[i] = output_values[j]
-                    break
-        
-        return lut
+    if (presets[preset]) {
+      setCurves(prev => ({
+        ...prev,
+        [activeChannel]: [...presets[preset]]
+      }));
+    }
+  }, [activeChannel]);
+
+  // Reset current channel
+  const resetChannel = useCallback(() => {
+    setCurves(prev => ({
+      ...prev,
+      [activeChannel]: [[0, 0], [64, 64], [128, 128], [192, 192], [255, 255]]
+    }));
+  }, [activeChannel]);
+
+  // Add mouse event listeners
+  useEffect(() => {
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
     
-    def _smooth_step(self, t, smoothing):
-        """Apply smoothing to interpolation parameter"""
-        if smoothing <= 0:
-            return t
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [handleMouseMove, handleMouseUp]);
+
+  const currentCurve = curves[activeChannel];
+  const channelColors = {
+    master: '#ffffff',
+    red: '#ff4444',
+    green: '#44ff44',
+    blue: '#4444ff'
+  };
+
+  return (
+    <div className="w-full max-w-4xl mx-auto p-6 bg-gray-900 text-white rounded-lg">
+      <h2 className="text-2xl font-bold mb-6 text-center">Apex RGB Curve Editor</h2>
+      
+      {/* Channel Selector */}
+      <div className="mb-6">
+        <div className="flex gap-2 mb-4">
+          {Object.keys(curves).map(channel => (
+            <button
+              key={channel}
+              onClick={() => setActiveChannel(channel)}
+              className={`px-4 py-2 rounded capitalize font-medium transition-all ${
+                activeChannel === channel 
+                  ? 'bg-blue-600 text-white' 
+                  : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+              }`}
+              style={activeChannel === channel ? { backgroundColor: channelColors[channel] + '40', borderColor: channelColors[channel] } : {}}
+            >
+              {channel}
+            </button>
+          ))}
+        </div>
         
-        # Hermite interpolation for smooth curves
-        smoothing = min(smoothing, 1.0)
-        smooth_t = t * t * (3.0 - 2.0 * t)
-        return t * (1.0 - smoothing) + smooth_t * smoothing
-    
-    def _apply_direct_curves(self, image, master_lut, red_lut, green_lut, blue_lut):
-        """Apply curves directly to RGB channels"""
-        
-        result = image.clone()
-        device = image.device
-        
-        # Convert to 0-255 range for LUT lookup
-        image_255 = (image * 255).round().long()
-        image_255 = torch.clamp(image_255, 0, 255)
-        
-        # Check if master curve is not linear
-        linear_lut = torch.linspace(0, 1, 256, device=device)
-        if not torch.allclose(master_lut, linear_lut, atol=1e-6):
-            for c in range(min(3, image.shape[-1])):
-                result[:, :, :, c] = master_lut[image_255[:, :, :, c]]
-        
-        # Convert back to 0-255 for individual channel curves
-        result_255 = (result * 255).round().long()
-        result_255 = torch.clamp(result_255, 0, 255)
-        
-        # Apply individual channel curves
-        if not torch.allclose(red_lut, linear_lut, atol=1e-6):
-            result[:, :, :, 0] = red_lut[result_255[:, :, :, 0]]
-        
-        if not torch.allclose(green_lut, linear_lut, atol=1e-6):
-            result[:, :, :, 1] = green_lut[result_255[:, :, :, 1]]
-        
-        if not torch.allclose(blue_lut, linear_lut, atol=1e-6):
-            result[:, :, :, 2] = blue_lut[result_255[:, :, :, 2]]
-        
-        return result
-    
-    def _apply_luminance_preserving_curves(self, image, master_lut, red_lut, green_lut, blue_lut):
-        """Apply curves while preserving luminance"""
-        
-        device = image.device
-        
-        # Calculate original luminance (Rec. 709)
-        luma_weights = torch.tensor([0.2126, 0.7152, 0.0722], device=device)
-        original_luma = torch.sum(image * luma_weights, dim=-1, keepdim=True)
-        
-        # Apply curves normally
-        curved = self._apply_direct_curves(image, master_lut, red_lut, green_lut, blue_lut)
-        
-        # Calculate new luminance
-        new_luma = torch.sum(curved * luma_weights, dim=-1, keepdim=True)
-        
-        # Preserve original luminance
-        luma_ratio = torch.where(new_luma > 0.001, original_luma / new_luma, 1.0)
-        result = curved * luma_ratio
-        
-        return result
-    
-    def _apply_blend_mode(self, base, overlay, mode, opacity):
-        """Apply various blend modes"""
-        
-        if mode == "multiply":
-            blended = base * overlay
-        elif mode == "screen":
-            blended = 1.0 - (1.0 - base) * (1.0 - overlay)
-        elif mode == "overlay":
-            blended = torch.where(base < 0.5, 
-                                2.0 * base * overlay,
-                                1.0 - 2.0 * (1.0 - base) * (1.0 - overlay))
-        elif mode == "soft_light":
-            blended = torch.where(overlay < 0.5,
-                                base - (1.0 - 2.0 * overlay) * base * (1.0 - base),
-                                base + (2.0 * overlay - 1.0) * (torch.sqrt(torch.clamp(base, 0.0, 1.0)) - base))
-        elif mode == "hard_light":
-            blended = torch.where(overlay < 0.5,
-                                2.0 * base * overlay,
-                                1.0 - 2.0 * (1.0 - base) * (1.0 - overlay))
-        elif mode == "color_dodge":
-            blended = torch.where(overlay >= 0.999, 1.0, 
-                                torch.clamp(base / torch.clamp(1.0 - overlay, 0.001, 1.0), 0.0, 1.0))
-        elif mode == "color_burn":
-            blended = torch.where(overlay <= 0.001, 0.0,
-                                1.0 - torch.clamp((1.0 - base) / torch.clamp(overlay, 0.001, 1.0), 0.0, 1.0))
-        elif mode == "darken":
-            blended = torch.min(base, overlay)
-        elif mode == "lighten":
-            blended = torch.max(base, overlay)
-        else:  # normal
-            blended = overlay
-        
-        # Apply opacity
-        return base * (1.0 - opacity) + blended * opacity
-    
-    def _generate_curve_info(self, master_points, red_points, green_points, blue_points,
-                           blend_mode, opacity, preserve_luminance):
-        """Generate human-readable curve information"""
-        
-        def points_to_str(points):
-            return f"[{', '.join(map(str, points))}]"
-        
-        info_lines = [
-            f"RGB Curves Applied:",
-            f"Master: {points_to_str(master_points)}",
-            f"Red: {points_to_str(red_points)}",
-            f"Green: {points_to_str(green_points)}",
-            f"Blue: {points_to_str(blue_points)}",
-            f"Blend: {blend_mode} ({opacity:.0%})",
-            f"Luminance Preserved: {preserve_luminance}"
-        ]
-        
-        return " | ".join(info_lines)
+        {/* Preset Buttons */}
+        <div className="flex flex-wrap gap-2 mb-4">
+          <button onClick={() => applyPreset('linear')} className="px-3 py-1 bg-gray-700 rounded text-sm hover:bg-gray-600">Linear</button>
+          <button onClick={() => applyPreset('slight_s')} className="px-3 py-1 bg-gray-700 rounded text-sm hover:bg-gray-600">Slight S</button>
+          <button onClick={() => applyPreset('strong_s')} className="px-3 py-1 bg-gray-700 rounded text-sm hover:bg-gray-600">Strong S</button>
+          <button onClick={() => applyPreset('brighten')} className="px-3 py-1 bg-gray-700 rounded text-sm hover:bg-gray-600">Brighten</button>
+          <button onClick={() => applyPreset('darken')} className="px-3 py-1 bg-gray-700 rounded text-sm hover:bg-gray-600">Darken</button>
+          <button onClick={() => applyPreset('contrast')} className="px-3 py-1 bg-gray-700 rounded text-sm hover:bg-gray-600">Contrast</button>
+          <button onClick={resetChannel} className="px-3 py-1 bg-red-600 rounded text-sm hover:bg-red-700">Reset</button>
+        </div>
+      </div>
+
+      {/* Main Curve Editor */}
+      <div className="flex gap-6">
+        <div className="flex-1">
+          <div className="bg-gray-800 p-4 rounded-lg">
+            <svg
+              ref={svgRef}
+              width={chartSize + padding * 2}
+              height={chartSize + padding * 2}
+              className="border border-gray-600 bg-gray-900 cursor-crosshair"
+              onClick={handleCurveClick}
+            >
+              {/* Grid */}
+              <defs>
+                <pattern id="grid" width="20" height="20" patternUnits="userSpaceOnUse">
+                  <path d="M 20 0 L 0 0 0 20" fill="none" stroke="#444" strokeWidth="0.5"/>
+                </pattern>
+              </defs>
+              <rect x={padding} y={padding} width={chartSize} height={chartSize} fill="url(#grid)"/>
+              
+              {/* Diagonal reference line */}
+              <line 
+                x1={padding} 
+                y1={padding + chartSize} 
+                x2={padding + chartSize} 
+                y2={padding}
+                stroke="#666" 
+                strokeWidth="1" 
+                strokeDasharray="5,5"
+              />
+              
+              {/* Curve */}
+              <path
+                d={generateCurvePath(currentCurve)}
+                fill="none"
+                stroke={channelColors[activeChannel]}
+                strokeWidth="2"
+                className="pointer-events-none"
+              />
+              
+              {/* Control Points */}
+              {currentCurve.map((point, index) => {
+                const svgPos = toSVG(point[0], point[1]);
+                return (
+                  <circle
+                    key={index}
+                    cx={svgPos.x}
+                    cy={svgPos.y}
+                    r="6"
+                    fill={channelColors[activeChannel]}
+                    stroke="#fff"
+                    strokeWidth="2"
+                    className="cursor-move hover:r-8 transition-all"
+                    onMouseDown={(e) => handleMouseDown(e, index)}
+                    onDoubleClick={(e) => handlePointDoubleClick(e, index)}
+                  />
+                );
+              })}
+              
+              {/* Axis labels */}
+              <text x={padding + chartSize/2} y={padding + chartSize + 30} fill="#ccc" textAnchor="middle" fontSize="12">Input</text>
+              <text x={15} y={padding + chartSize/2} fill="#ccc" textAnchor="middle" fontSize="12" transform={`rotate(-90, 15, ${padding + chartSize/2})`}>Output</text>
+            </svg>
+          </div>
+          
+          {/* Point Info */}
+          <div className="mt-4 text-sm text-gray-400">
+            <p>Click on curve to add points • Drag points to adjust • Double-click to remove (except endpoints)</p>
+            <p className="mt-1">Current {activeChannel} curve: {currentCurve.map(p => `(${p[0]},${p[1]})`).join(' ')}</p>
+          </div>
+        </div>
+
+        {/* Settings Panel */}
+        <div className="w-80 bg-gray-800 p-4 rounded-lg">
+          <h3 className="text-lg font-semibold mb-4">Settings</h3>
+          
+          {/* Blend Mode */}
+          <div className="mb-4">
+            <label className="block text-sm font-medium mb-2">Blend Mode</label>
+            <select 
+              value={previewSettings.blendMode}
+              onChange={(e) => setPreviewSettings(prev => ({...prev, blendMode: e.target.value}))}
+              className="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2"
+            >
+              <option value="normal">Normal</option>
+              <option value="multiply">Multiply</option>
+              <option value="screen">Screen</option>
+              <option value="overlay">Overlay</option>
+              <option value="soft_light">Soft Light</option>
+              <option value="hard_light">Hard Light</option>
+              <option value="color_dodge">Color Dodge</option>
+              <option value="color_burn">Color Burn</option>
+              <option value="darken">Darken</option>
+              <option value="lighten">Lighten</option>
+            </select>
+          </div>
+
+          {/* Opacity */}
+          <div className="mb-4">
+            <label className="block text-sm font-medium mb-2">Opacity: {Math.round(previewSettings.opacity * 100)}%</label>
+            <input
+              type="range"
+              min="0"
+              max="1"
+              step="0.01"
+              value={previewSettings.opacity}
+              onChange={(e) => setPreviewSettings(prev => ({...prev, opacity: parseFloat(e.target.value)}))}
+              className="w-full"
+            />
+          </div>
+
+          {/* Preserve Luminance */}
+          <div className="mb-4">
+            <label className="flex items-center">
+              <input
+                type="checkbox"
+                checked={previewSettings.preserveLuminance}
+                onChange={(e) => setPreviewSettings(prev => ({...prev, preserveLuminance: e.target.checked}))}
+                className="mr-2"
+              />
+              <span className="text-sm">Preserve Luminance</span>
+            </label>
+          </div>
+
+          {/* Export/Import */}
+          <div className="space-y-2">
+            <button className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded transition-colors">
+              Export Curves
+            </button>
+            <button className="w-full bg-green-600 hover:bg-green-700 text-white py-2 px-4 rounded transition-colors">
+              Import Curves
+            </button>
+            <button className="w-full bg-purple-600 hover:bg-purple-700 text-white py-2 px-4 rounded transition-colors">
+              Apply to ComfyUI
+            </button>
+          </div>
+
+          {/* Current Values Display */}
+          <div className="mt-6 p-3 bg-gray-700 rounded">
+            <h4 className="text-sm font-medium mb-2">Current Values</h4>
+            <div className="text-xs space-y-1">
+              {Object.entries(curves).map(([channel, points]) => (
+                <div key={channel} className="flex justify-between">
+                  <span className="capitalize" style={{color: channelColors[channel]}}>{channel}:</span>
+                  <span>{points.length} points</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default ApexCurveEditor;
