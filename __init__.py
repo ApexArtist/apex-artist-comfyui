@@ -4,7 +4,7 @@ Professional image processing nodes for ComfyUI designed for AI artists and crea
 """
 
 # Version information
-__version__ = "1.1.0"
+__version__ = "1.2.0"
 __author__ = "Apex Artist"
 __description__ = "Professional image processing nodes for ComfyUI"
 
