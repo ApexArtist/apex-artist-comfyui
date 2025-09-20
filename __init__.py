@@ -1,77 +1,47 @@
 """
-Apex Artist Nodes for ComfyUI - Professional image processing nodes
+ComfyUI Apex Artist Nodes
+Professional image processing nodes for ComfyUI designed for AI artists and creators.
 """
-from .apex_depth_to_normal import ApexDepthToNormal
-from .apex_resize import ApexSmartResize
-from .apex_rgb_curve import ApexRGBCurve
-# Curve preset definitions
-CURVE_PRESETS = {
-    # Basic Adjustments
-    "linear": [(0, 0), (0.25, 0.25), (0.5, 0.5), (0.75, 0.75), (1, 1)],
-    "brighten": [(0, 0), (0.25, 0.35), (0.5, 0.65), (0.75, 0.85), (1, 1)],
-    "darken": [(0, 0), (0.25, 0.15), (0.5, 0.35), (0.75, 0.65), (1, 1)],
-    
-    # Contrast Curves
-    "contrast": [(0, 0), (0.25, 0.15), (0.5, 0.5), (0.75, 0.85), (1, 1)],
-    "strong_contrast": [(0, 0), (0.25, 0.1), (0.5, 0.5), (0.75, 0.9), (1, 1)],
-    "low_contrast": [(0, 0.1), (0.25, 0.3), (0.5, 0.5), (0.75, 0.7), (1, 0.9)],
-    
-    # S-Curves
-    "slight_s": [(0, 0), (0.2, 0.15), (0.5, 0.5), (0.8, 0.85), (1, 1)],
-    "medium_s": [(0, 0), (0.2, 0.1), (0.5, 0.5), (0.8, 0.9), (1, 1)],
-    "strong_s": [(0, 0), (0.2, 0.05), (0.5, 0.5), (0.8, 0.95), (1, 1)],
-    
-    # Creative Looks
-    "film_look": [(0.06, 0), (0.25, 0.2), (0.5, 0.55), (0.75, 0.8), (0.94, 1)],
-    "cinematic": [(0.05, 0), (0.3, 0.25), (0.5, 0.55), (0.7, 0.75), (0.95, 0.95)],
-    "vintage": [(0.08, 0.1), (0.3, 0.3), (0.5, 0.47), (0.7, 0.7), (0.92, 0.9)],
-    "bleach_bypass": [(0.05, 0.05), (0.25, 0.3), (0.5, 0.6), (0.75, 0.8), (0.95, 0.95)],
-    "technicolor": [(0, 0), (0.2, 0.15), (0.5, 0.6), (0.8, 0.85), (1, 0.95)]
-}
 
-# Blend mode definitions
-BLEND_MODES = [
-    "normal",
-    "multiply", 
-    "screen",
-    "overlay",
-    "soft_light",
-    "hard_light",
-    "color_dodge",
-    "color_burn",
-    "darken",
-    "lighten"
-]
-
-# Default curve settings
-DEFAULT_CURVE_POINTS = [(0, 0), (0.25, 0.25), (0.5, 0.5), (0.75, 0.75), (1, 1)]
-
-# Node mappings
-NODE_CLASS_MAPPINGS = {
-    "Apex Smart Resize": ApexSmartResize,
-    "Apex RGB Curves": ApexRGBCurve,
-    "Apex Depth to Normal": ApexDepthToNormal,
-}
-
-# Display names
-NODE_DISPLAY_NAME_MAPPINGS = {
-    "Apex Smart Resize": "🎯 Smart Resolution Snap",
-    "Apex RGB Curves": "🎨 Professional RGB Curves",
-    "Apex Depth to Normal": "🗺️ Depth to Normal Map"
-}
-
-# Package metadata
+# Version information
 __version__ = "1.1.0"
-__author__ = "ApexArtist"
+__author__ = "Apex Artist"
 __description__ = "Professional image processing nodes for ComfyUI"
 
-# Export for ComfyUI
-__all__ = ['NODE_CLASS_MAPPINGS', 'NODE_DISPLAY_NAME_MAPPINGS']
+# Import all nodes
+from .apex_resize import ApexSmartResize
+from .apex_rgb_curve import ApexRGBCurve
+from .apex_depth_to_normal import ApexDepthToNormal
+from .apex_color_reference import ApexColorReference
+from .apex_color_science import ApexColorScience
+from .apex_film_profiles import ApexFilmProfiles
+from .apex_widgets import ApexWidgets
 
-print(f"🎨 Apex Artist Nodes v{__version__} loaded successfully!")
-print("   📦 Available nodes:")
-print("      🎯 Apex Smart Resize - Intelligent image resizing")
-print("      🗺️ Apex Depth to Normal - Depth map conversion") 
+# Node mappings with version info in display names
+NODE_CLASS_MAPPINGS = {
+    "ApexSmartResize": ApexSmartResize,
+    "ApexRGBCurve": ApexRGBCurve,
+    "ApexDepthToNormal": ApexDepthToNormal,
+    "ApexColorReference": ApexColorReference,
+    "ApexColorScience": ApexColorScience,
+    "ApexFilmProfiles": ApexFilmProfiles,
+    "ApexWidgets": ApexWidgets,
+}
 
+NODE_DISPLAY_NAME_MAPPINGS = {
+    "ApexSmartResize": f"🎯 Apex Smart Resize v{__version__}",
+    "ApexRGBCurve": f"🎨 Apex RGB Curve v{__version__}",
+    "ApexDepthToNormal": f"🔄 Apex Depth to Normal v{__version__}",
+    "ApexColorReference": f"🎨 Apex Color Reference v{__version__}",
+    "ApexColorScience": f"🔬 Apex Color Science v{__version__}",
+    "ApexFilmProfiles": f"🎞️ Apex Film Profiles v{__version__}",
+    "ApexWidgets": f"🔧 Apex Widgets v{__version__}",
+}
 
+# Export version info
+WEB_DIRECTORY = "./web"
+__all__ = ['NODE_CLASS_MAPPINGS', 'NODE_DISPLAY_NAME_MAPPINGS', '__version__']
 
+# Print version info when loading
+print(f"[Apex Artist] Loading nodes v{__version__}")
+print(f"[Apex Artist] {len(NODE_CLASS_MAPPINGS)} nodes available")
