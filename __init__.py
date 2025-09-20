@@ -4,8 +4,6 @@ Apex Artist Nodes for ComfyUI - Professional image processing nodes
 from .apex_depth_to_normal import ApexDepthToNormal
 from .apex_resize import ApexSmartResize
 from .apex_rgb_curve import ApexRGBCurve
-
-<<<<<<< HEAD
 # Curve preset definitions
 CURVE_PRESETS = {
     # Basic Adjustments
@@ -57,24 +55,9 @@ NODE_CLASS_MAPPINGS = {
 
 # Display names
 NODE_DISPLAY_NAME_MAPPINGS = {
-    "ApexSmartResize": "Apex Artist - Smart Resize",
-    "ApexRGBCurve": "Apex Artist - RGB Curves",
-    "ApexDepthToNormal": "Apex Artist - Depth to Normal",
-=======
-
-# Node Class Mappings
-NODE_CLASS_MAPPINGS = {
-    "ApexSmartResize": ApexSmartResize,
-    "ApexDepthToNormal": ApexDepthToNormal,
-    
-}
-
-# Display Name Mappings  
-NODE_DISPLAY_NAME_MAPPINGS = {
     "ApexSmartResize": "🎯 Apex Smart Resize",
-    "ApexDepthToNormal": "🗺️ Apex Depth to Normal",
-   
->>>>>>> 66755e92aa40bb74cc7ab2a10d4f863e7c26224d
+    "ApexRGBCurve": "🎨 Apex RGB Curves",
+    "ApexDepthToNormal": "🗺️ Apex Depth to Normal"
 }
 
 # Package metadata
