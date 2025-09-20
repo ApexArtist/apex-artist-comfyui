@@ -3,11 +3,10 @@ ComfyUI Apex Artist Nodes
 Professional image processing nodes for ComfyUI designed for AI artists and creators.
 """
 
-__version__ = "1.2.0"  # ← Update this
+__version__ = "1.2.0"
 __author__ = "Apex Artist"
 __description__ = "Professional image processing nodes for ComfyUI"
 
-# Import all nodes
 from .apex_resize import ApexSmartResize
 from .apex_rgb_curve import ApexRGBCurve
 from .apex_depth_to_normal import ApexDepthToNormal
