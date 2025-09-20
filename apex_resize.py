@@ -75,12 +75,12 @@ class ApexSmartResize:
                     "prefer_smaller",    # Prefer smaller resolutions
                 ], {"default": "keep_proportion"}),
                 "resize_mode": ([
-                    "stretch",           # Stretch to exact dimensions
                     "crop_center",       # Crop from center
+                    "stretch",           # Stretch to exact dimensions
                     "fit_pad_black",     # Fit with black padding
                     "fit_pad_white",     # Fit with white padding  
                     "fit_pad_edge"       # Fit with edge extension
-                ], {"default": "stretch"}),
+                ], {"default": "crop_center"}),
                 "interpolation": ([
                     "lanczos",
                     "bicubic",
@@ -88,7 +88,7 @@ class ApexSmartResize:
                     "nearest"
                 ], {"default": "lanczos"}),
                 "show_candidates": ("BOOLEAN", {
-                    "default": True,
+                    "default": False,
                     "tooltip": "Show resolution candidates in console"
                 })
             }
@@ -122,18 +122,11 @@ class ApexSmartResize:
             target_area = target_w * target_h
             scale_factor = math.sqrt(target_area / orig_area)
             
-            # Generate friendly log and console data
-            friendly_log = self._create_friendly_log(
-                orig_w, orig_h, target_w, target_h, scale_factor, resize_mode, resolution_set, snap_method
-            )
-            
+            # Generate console data
             console_data = self._create_console_data(
                 orig_w, orig_h, target_w, target_h, scale_factor, resize_mode, 
                 resolution_set, snap_method, candidates_info, start_time
             )
-            
-            # Print friendly log to console
-            print(friendly_log)
             
             # Resize the image
             resized_image = self._apply_resize(image, target_w, target_h, resize_mode, interpolation)
@@ -148,9 +141,6 @@ class ApexSmartResize:
             return (resized_image, target_w, target_h, scale_factor, info, console_output)
             
         except Exception as e:
-            error_log = f"❌ Resize failed: {str(e)}"
-            print(error_log)
-            
             error_console = json.dumps({
                 "status": "error",
                 "message": str(e),
@@ -159,36 +149,6 @@ class ApexSmartResize:
             }, indent=2)
             
             return (image, orig_w, orig_h, 1.0, f"Error: {str(e)}", error_console)
-    
-    def _create_friendly_log(self, orig_w, orig_h, target_w, target_h, scale_factor, resize_mode, resolution_set, snap_method):
-        """Create friendly console log message"""
-        
-        size_change_percent = ((scale_factor * scale_factor - 1) * 100)
-        
-        # Determine what happened
-        if scale_factor > 1.2:
-            action = f"📈 Smart upscaled by {size_change_percent:.0f}%"
-        elif scale_factor < 0.8:
-            action = f"📉 Smart downscaled by {abs(size_change_percent):.0f}%"
-        elif scale_factor > 1.05:
-            action = f"📏 Minor upscale of {size_change_percent:.0f}%"
-        elif scale_factor < 0.95:
-            action = f"📏 Minor downscale of {abs(size_change_percent):.0f}%"
-        else:
-            action = "✨ Perfect size - no scaling needed!"
-        
-        # Resize mode explanation
-        mode_msg = ""
-        if resize_mode == "crop_center":
-            mode_msg = " with center cropping"
-        elif "pad" in resize_mode:
-            pad_color = "black" if "black" in resize_mode else "white" if "white" in resize_mode else "edge"
-            mode_msg = f" with {pad_color} padding"
-        elif resize_mode == "stretch":
-            if abs(scale_factor - 1.0) > 0.1:
-                mode_msg = " (stretched to exact dimensions)"
-        
-        return f"🎯 {action} • {orig_w}×{orig_h} → {target_w}×{target_h}{mode_msg} • {resolution_set} set"
     
     def _create_console_data(self, orig_w, orig_h, target_w, target_h, scale_factor, resize_mode, 
                            resolution_set, snap_method, candidates_info, start_time):
@@ -286,14 +246,6 @@ class ApexSmartResize:
                 best = candidates[0]
             info = f"Prefer smaller from {resolution_set}"
         
-        # Show candidates if requested
-        if show_candidates:
-            print("🏆 Top 5 resolution candidates:")
-            sorted_candidates = sorted(candidates, key=lambda x: x['area_diff'])[:5]
-            for i, c in enumerate(sorted_candidates):
-                marker = "👑" if c == best else f"  {i+1}."
-                print(f"{marker} {c['resolution']} (scale: {c['scale_factor']}x, aspect: {c['aspect_ratio']})")
-        
         # Extract target dimensions
         w, h = map(int, best['resolution'].split('x'))
         candidates_info = {
@@ -380,14 +332,6 @@ class ApexSmartResize:
                     best_aspect_diff = aspect_diff
                     best_match = (w, h)
         
-        # Show candidates if requested
-        if show_candidates and candidates:
-            print("🏆 Keep Proportion candidates:")
-            sorted_candidates = sorted(candidates, key=lambda x: x['score'])[:5]
-            for i, c in enumerate(sorted_candidates):
-                marker = "👑" if c['resolution'] == f"{best_match[0]}x{best_match[1]}" else f"  {i+1}."
-                print(f"{marker} {c['resolution']} (scale: {c['scale_factor']}x, aspect_diff: {c['aspect_diff']})")
-        
         target_w, target_h = best_match
         info = f"Keep proportion snap from {len(resolutions)} resolutions"
         
@@ -399,8 +343,6 @@ class ApexSmartResize:
         }
         
         return target_w, target_h, info, candidates_info
-    
-    # ... [Keep all your existing _apply_resize, _resize_tensor, etc. methods unchanged] ...
     
     def _apply_resize(self, image, target_w, target_h, resize_mode, interpolation):
         """Apply the actual resizing with specified method"""
