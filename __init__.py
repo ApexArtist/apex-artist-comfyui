@@ -48,16 +48,16 @@ DEFAULT_CURVE_POINTS = [(0, 0), (0.25, 0.25), (0.5, 0.5), (0.75, 0.75), (1, 1)]
 
 # Node mappings
 NODE_CLASS_MAPPINGS = {
-    "ApexSmartResize": ApexSmartResize,
-    "ApexRGBCurve": ApexRGBCurve,
-    "ApexDepthToNormal": ApexDepthToNormal,
+    "Apex Smart Resize": ApexSmartResize,
+    "Apex RGB Curves": ApexRGBCurve,
+    "Apex Depth to Normal": ApexDepthToNormal,
 }
 
 # Display names
 NODE_DISPLAY_NAME_MAPPINGS = {
-    "ApexSmartResize": "🎯 Apex Smart Resize",
-    "ApexRGBCurve": "🎨 Apex RGB Curves",
-    "ApexDepthToNormal": "🗺️ Apex Depth to Normal"
+    "Apex Smart Resize": "🎯 Smart Resolution Snap",
+    "Apex RGB Curves": "🎨 Professional RGB Curves",
+    "Apex Depth to Normal": "🗺️ Depth to Normal Map"
 }
 
 # Package metadata
