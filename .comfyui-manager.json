@@ -1,0 +1,23 @@
+{
+    "name": "Apex Artist Nodes",
+    "description": "Professional image processing nodes for ComfyUI designed for AI artists and creators",
+    "version": "1.2.0",
+    "author": "Apex Artist",
+    "license": "Apache-2.0",
+    "repository": "https://github.com/ApexArtist/comfyui-apex-artist",
+    "reference": "https://github.com/ApexArtist/comfyui-apex-artist",
+    "files": [
+        "https://github.com/ApexArtist/comfyui-apex-artist"
+    ],
+    "install_type": "git-clone",
+    "pip": [],
+    "nodelist": [
+        "ApexSmartResize",
+        "ApexRGBCurve",
+        "ApexDepthToNormal",
+        "ApexColorReference",
+        "ApexColorScience",
+        "ApexFilmProfiles",
+        "ApexWidgets"
+    ]
+}
