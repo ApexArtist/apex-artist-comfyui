@@ -3,8 +3,7 @@ ComfyUI Apex Artist Nodes
 Professional image processing nodes for ComfyUI designed for AI artists and creators.
 """
 
-# Version information
-__version__ = "1.2.0"
+__version__ = "1.1.0"
 __author__ = "Apex Artist"
 __description__ = "Professional image processing nodes for ComfyUI"
 
@@ -17,7 +16,6 @@ from .apex_color_science import ApexColorScience
 from .apex_film_profiles import ApexFilmProfiles
 from .apex_widgets import ApexWidgets
 
-# Node mappings with version info in display names
 NODE_CLASS_MAPPINGS = {
     "ApexSmartResize": ApexSmartResize,
     "ApexRGBCurve": ApexRGBCurve,
@@ -29,19 +27,15 @@ NODE_CLASS_MAPPINGS = {
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
-    "ApexSmartResize": f"🎯 Apex Smart Resize v{__version__}",
-    "ApexRGBCurve": f"🎨 Apex RGB Curve v{__version__}",
-    "ApexDepthToNormal": f"🔄 Apex Depth to Normal v{__version__}",
-    "ApexColorReference": f"🎨 Apex Color Reference v{__version__}",
-    "ApexColorScience": f"🔬 Apex Color Science v{__version__}",
-    "ApexFilmProfiles": f"🎞️ Apex Film Profiles v{__version__}",
-    "ApexWidgets": f"🔧 Apex Widgets v{__version__}",
+    "ApexSmartResize": "🎯 Apex Smart Resize",
+    "ApexRGBCurve": "🎨 Apex RGB Curve",
+    "ApexDepthToNormal": "🔄 Apex Depth to Normal",
+    "ApexColorReference": "🎨 Apex Color Reference",
+    "ApexColorScience": "🔬 Apex Color Science",
+    "ApexFilmProfiles": "🎞️ Apex Film Profiles",
+    "ApexWidgets": "🔧 Apex Widgets",
 }
 
-# Export version info
-WEB_DIRECTORY = "./web"
 __all__ = ['NODE_CLASS_MAPPINGS', 'NODE_DISPLAY_NAME_MAPPINGS', '__version__']
 
-# Print version info when loading
-print(f"[Apex Artist] Loading nodes v{__version__}")
-print(f"[Apex Artist] {len(NODE_CLASS_MAPPINGS)} nodes available")
+print(f"[Apex Artist] Loading v{__version__} - {len(NODE_CLASS_MAPPINGS)} nodes available")
