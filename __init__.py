@@ -1,9 +1,9 @@
-from apex_smart_resize import ApexSmartResize
-from apex_rgb_curve import ApexRGBCurve
-from apex_color_reference import ApexColorReference
-from apex_color_science import ColorScience, FilmGrain
-from apex_depth_to_normal import ApexDepthToNormal
-from apex_film_profiles import FilmStockProfiles
+from .apex_smart_resize import ApexSmartResize
+from .apex_rgb_curve import ApexRGBCurve
+from .apex_color_reference import ApexColorReference
+from .apex_color_science import ColorScience, FilmGrain
+from .apex_depth_to_normal import ApexDepthToNormal
+from .apex_film_profiles import FilmStockProfiles
 
 NODE_CLASS_MAPPINGS = {
     "ApexSmartResize": ApexSmartResize,
