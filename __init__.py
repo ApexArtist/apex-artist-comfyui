@@ -1,4 +1,4 @@
-from apex_resize import ApexSmartResize
+from apex_smart_resize import ApexSmartResize
 from apex_rgb_curve import ApexRGBCurve
 from apex_color_reference import ApexColorReference
 from apex_color_science import ColorScience, FilmGrain
