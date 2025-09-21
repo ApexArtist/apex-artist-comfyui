@@ -5,6 +5,7 @@ This project provides professional image processing nodes for ComfyUI, focusing 
 - Smart image resizing with AI-compatible resolutions (`apex_smart_resize.py`)
 - Depth to normal map conversion (`apex_depth_to_normal.py`)
 - Color reference and matching tools (`apex_color_reference.py`)
+- Layer blending with Photoshop-style blend modes (`apex_layer_blend.py`)
 
 ## Core Architecture
 - Each node is implemented as a standalone Python class
@@ -38,7 +39,7 @@ This project provides professional image processing nodes for ComfyUI, focusing 
 
 4. **Node Registration**:
    - All nodes registered in `__init__.py` with `NODE_CLASS_MAPPINGS` and `NODE_DISPLAY_NAME_MAPPINGS`
-   - Three total nodes: ApexSmartResize, ApexDepthToNormal, ApexColorReference
+   - Four total nodes: ApexSmartResize, ApexDepthToNormal, ApexColorReference, ApexLayerBlend
 
 ## Dependencies
 - Core dependencies: torch, numpy, PIL, scipy (provided by ComfyUI)
@@ -69,3 +70,4 @@ This project provides professional image processing nodes for ComfyUI, focusing 
   - Resolution snapping functionality (ApexSmartResize)
   - Depth map conversions (ApexDepthToNormal)
   - Color reference matching (ApexColorReference)
+  - Layer blending modes (ApexLayerBlend)
