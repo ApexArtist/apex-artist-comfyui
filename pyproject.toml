@@ -1,6 +1,6 @@
 [project]
 name = "comfyui-apex-artist"
-version = "1.2.0"  # ← Update this
+version = "1.2.1"  # ← Update this
 description = "Professional image processing nodes for ComfyUI designed for AI artists and creators"
 authors = [
     {name = "Apex Artist"}
