@@ -440,5 +440,3 @@ class ApexBlur:
         
         # Apply mask: masked areas get processed image, unmasked areas keep original
         return original * (1 - mask) + processed * mask
-        
-        return result / samples
