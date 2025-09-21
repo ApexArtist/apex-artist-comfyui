@@ -1,25 +1,36 @@
 [project]
 name = "comfyui-apex-artist"
-version = "1.4.0"  # ← Update this
-description = "Professional image processing nodes for ComfyUI designed for AI artists and creators"
-authors = [
-    {name = "Apex Artist"}
-]
-readme = "README.md"
-license = {file = "license.md"}
+version = "1.5.1"
+description = "Professional VFX and post-production nodes for ComfyUI - Advanced image processing, film grading, layer blending, and cinematic effects for creators and studios"
+license = { file = "license.md" }
 requires-python = ">=3.8"
 dependencies = [
-    "torch>=1.13.0",
-    "torchvision>=0.14.0",
-    "numpy>=1.21.0",
-    "pillow>=8.0.0"
+    "scikit-image>=0.19.0"
 ]
-keywords = ["comfyui", "image-processing", "ai", "nodes"]
+dynamic = ["dependencies"]
+classifiers = [
+    "Operating System :: OS Independent",
+    "Environment :: GPU :: NVIDIA CUDA",
+    "Environment :: GPU :: AMD ROCm",
+    "Environment :: GPU :: Apple Metal"
+]
+keywords = ["comfyui", "image-processing", "ai", "nodes", "vfx", "film-grading", "normal-maps", "stablenormal"]
+
+[tool.setuptools.dynamic]
+dependencies = {file = ["requirements.txt"]}
 
 [project.urls]
-Homepage = "https://github.com/ApexArtist/comfyui-apex-artist"
 Repository = "https://github.com/ApexArtist/comfyui-apex-artist"
-Issues = "https://github.com/ApexArtist/comfyui-apex-artist/issues"
+Homepage = "https://github.com/ApexArtist/comfyui-apex-artist"
+Documentation = "https://github.com/ApexArtist/comfyui-apex-artist#readme"
+"Bug Tracker" = "https://github.com/ApexArtist/comfyui-apex-artist/issues"
+
+[tool.comfy]
+PublisherId = "Apex"
+DisplayName = "Apex Artist Professional VFX Tools"
+Icon = "https://raw.githubusercontent.com/ApexArtist/comfyui-apex-artist/main/icon.png"
+Banner = "https://raw.githubusercontent.com/ApexArtist/comfyui-apex-artist/main/banner.png"
+requires-comfyui = ">=0.1.0"
 
 [build-system]
 requires = ["setuptools>=61.0", "wheel"]
