@@ -11,10 +11,10 @@ NODE_CLASS_MAPPINGS = {
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
-    "ApexSmartResize": "Apex Smart Resize",
-    "ApexDepthToNormal": "Apex Depth to Normal",
-    "ApexColorReference": "Apex Color Reference",
-    "ApexLayerBlend": "Apex Layer Blend",
+    "ApexSmartResize": "🚀 Apex Smart Resize",
+    "ApexDepthToNormal": "🎯 Apex Depth to Normal",
+    "ApexColorReference": "🎨 Apex Color Reference",
+    "ApexLayerBlend": "✨ Apex Layer Blend",
 }
 
 __all__ = ['NODE_CLASS_MAPPINGS', 'NODE_DISPLAY_NAME_MAPPINGS']

@@ -67,7 +67,7 @@ This project provides professional image processing nodes for ComfyUI, focusing 
 ## Testing
 - Manual testing through ComfyUI interface
 - Key test cases:
-  - Resolution snapping functionality (ApexSmartResize)
-  - Depth map conversions (ApexDepthToNormal)
-  - Color reference matching (ApexColorReference)
-  - Layer blending modes (ApexLayerBlend)
+  - Resolution snapping functionality (🚀 Apex Smart Resize)
+  - Depth map conversions (🎯 Apex Depth to Normal)
+  - Color reference matching (🎨 Apex Color Reference)
+  - Layer blending modes (✨ Apex Layer Blend)
