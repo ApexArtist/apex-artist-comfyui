@@ -70,7 +70,6 @@ class ApexLayerBlend:
                     "max": 1.0,
                     "step": 0.01
                 }),
-                "mask": ("IMAGE", {"default": None}),
             },
             "optional": {
                 "mask": ("IMAGE",),
