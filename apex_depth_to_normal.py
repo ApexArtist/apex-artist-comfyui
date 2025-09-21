@@ -43,7 +43,7 @@ class ApexDepthToNormal:
     RETURN_TYPES = ("IMAGE",)
     RETURN_NAMES = ("normal_map",)
     FUNCTION = "depth_to_normal"
-    CATEGORY = "ApexArtist"
+    CATEGORY = "ApexArtist/Compositing"
     
     def depth_to_normal(self, depth_image, strength=1.0, coordinate_system="OpenGL (Blender)", 
                        blur_radius=0.0, invert_depth=False, edge_enhance=0.0):
