@@ -1,6 +1,6 @@
 [project]
 name = "comfyui-apex-artist"
-version = "1.5.1"
+version = "1.5.2"
 description = "Professional VFX and post-production nodes for ComfyUI - Advanced image processing, film grading, layer blending, and cinematic effects for creators and studios"
 license = { file = "license.md" }
 requires-python = ">=3.8"
@@ -26,7 +26,7 @@ Documentation = "https://github.com/ApexArtist/comfyui-apex-artist#readme"
 "Bug Tracker" = "https://github.com/ApexArtist/comfyui-apex-artist/issues"
 
 [tool.comfy]
-PublisherId = "Apex"
+PublisherId = "apex"
 DisplayName = "Apex Artist Professional VFX Tools"
 Icon = "https://raw.githubusercontent.com/ApexArtist/comfyui-apex-artist/main/icon.png"
 Banner = "https://raw.githubusercontent.com/ApexArtist/comfyui-apex-artist/main/banner.png"
