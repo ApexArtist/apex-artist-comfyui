@@ -91,51 +91,83 @@ class ApexColorReference:
             return (target_image, f"Error: {str(e)}")
 
     def _histogram_matching(self, target, reference, strength):
-        """Optimized histogram matching using vectorized operations"""
+        """Fixed histogram matching with proper algorithm"""
         device = target.device
-        batch_size = target.shape[0]
+        result = target.clone()
         
-        # Process all channels at once using vectorized operations
-        target_flat = target.view(batch_size, -1, 3)  # [B, H*W, 3]
-        ref_flat = reference.view(batch_size, -1, 3)
+        # Process each channel (keeping the working algorithm)
+        for c in range(3):
+            # Get channel data
+            target_channel = target[0, :, :, c].flatten()
+            ref_channel = reference[0, :, :, c].flatten()
+            
+            # Sort both channels (this is the correct approach)
+            target_sorted, target_indices = torch.sort(target_channel)
+            ref_sorted, _ = torch.sort(ref_channel)
+            
+            # Match distributions by mapping sorted values
+            n_target = target_sorted.shape[0]
+            n_ref = ref_sorted.shape[0]
+            
+            # Create index mapping for reference values
+            ref_indices = torch.linspace(0, n_ref - 1, n_target, device=device)
+            ref_indices = torch.clamp(ref_indices, 0, n_ref - 1).long()
+            
+            # Map target values to reference distribution
+            mapped_values = ref_sorted[ref_indices]
+            
+            # Apply strength blending
+            blended_values = target_sorted + strength * (mapped_values - target_sorted)
+            
+            # Put values back in original positions
+            result_channel = torch.zeros_like(target_channel)
+            result_channel[target_indices] = blended_values
+            
+            # Reshape back to image
+            result[0, :, :, c] = result_channel.view(target.shape[1], target.shape[2])
         
-        # Use torch.quantile for faster percentile calculation
-        percentiles = torch.linspace(0, 1, 256, device=device)
-        
-        # Calculate quantiles for all channels simultaneously
-        target_quantiles = torch.quantile(target_flat, percentiles.unsqueeze(-1), dim=1)  # [256, B, 3]
-        ref_quantiles = torch.quantile(ref_flat, percentiles.unsqueeze(-1), dim=1)
-        
-        # Interpolate using torch operations (GPU-accelerated)
-        target_indices = (target_flat * 255).long().clamp(0, 255)  # [B, H*W, 3]
-        
-        # Vectorized lookup for all channels
-        mapped_values = ref_quantiles[target_indices, 0, :]  # Broadcasting magic
-        original_values = target_quantiles[target_indices, 0, :]
-        
-        # Apply strength blending
-        result_flat = original_values + strength * (mapped_values - original_values)
-        
-        return torch.clamp(result_flat.view_as(target), 0, 1)
+        return torch.clamp(result, 0, 1)
 
     def _extract_curves(self, target, reference, strength):
-        """Optimized curve extraction using GPU operations"""
-        # Process all channels simultaneously
-        percentiles = torch.tensor([0, 0.1, 0.25, 0.5, 0.75, 0.9, 1.0], device=target.device)
+        """Fixed curve extraction using reliable percentile mapping"""
+        result = target.clone()
         
-        # Calculate percentiles for all channels at once
-        target_flat = target.view(target.shape[0], -1, 3)  # [B, H*W, 3]
-        ref_flat = reference.view(reference.shape[0], -1, 3)
+        # Use key percentiles for curve points
+        percentiles = [0, 0.05, 0.25, 0.5, 0.75, 0.95, 1.0]
         
-        target_points = torch.quantile(target_flat, percentiles.unsqueeze(-1), dim=1)  # [7, B, 3]
-        ref_points = torch.quantile(ref_flat, percentiles.unsqueeze(-1), dim=1)
-        
-        # Create smooth curve using linear interpolation (faster than scipy)
-        curve_lut = self._create_fast_curve_lut(target_points, ref_points, strength, target.device)
-        
-        # Apply curve using vectorized indexing
-        target_indices = (target * 255).long().clamp(0, 255)
-        result = curve_lut[target_indices]
+        # Process each channel
+        for c in range(3):
+            target_channel = target[0, :, :, c]
+            ref_channel = reference[0, :, :, c]
+            
+            # Calculate percentiles for both images
+            target_points = []
+            ref_points = []
+            
+            for p in percentiles:
+                target_points.append(torch.quantile(target_channel, p))
+                ref_points.append(torch.quantile(ref_channel, p))
+            
+            target_points = torch.stack(target_points)
+            ref_points = torch.stack(ref_points)
+            
+            # Create smooth mapping using linear interpolation
+            flat_channel = target_channel.flatten()
+            mapped_values = torch.zeros_like(flat_channel)
+            
+            # Map each pixel value using the curve points
+            for i in range(len(percentiles) - 1):
+                # Find pixels in this range
+                mask = (flat_channel >= target_points[i]) & (flat_channel <= target_points[i + 1])
+                
+                if mask.any():
+                    # Linear interpolation between curve points
+                    t = (flat_channel[mask] - target_points[i]) / (target_points[i + 1] - target_points[i] + 1e-8)
+                    mapped_values[mask] = ref_points[i] + t * (ref_points[i + 1] - ref_points[i])
+            
+            # Apply strength blending
+            adjusted_channel = flat_channel + strength * (mapped_values - flat_channel)
+            result[0, :, :, c] = adjusted_channel.view_as(target_channel)
         
         return torch.clamp(result, 0, 1)
 
@@ -164,18 +196,17 @@ class ApexColorReference:
         return torch.clamp(result, 0, 1)
 
     def _zone_based_matching(self, target, reference, zones, strength):
-        """Optimized zone-based matching using vectorized operations"""
-        device = target.device
+        """Fixed zone-based matching with reliable algorithm"""
+        result = target.clone()
         
-        # Pre-calculate luminance for both images (vectorized)
-        luma_weights = torch.tensor([0.2989, 0.5870, 0.1140], device=device).view(1, 1, 1, 3)
-        target_luma = torch.sum(target * luma_weights, dim=-1, keepdim=True)  # [B, H, W, 1]
-        ref_luma = torch.sum(reference * luma_weights, dim=-1, keepdim=True)
+        # Calculate luminance (standard rec709 weights)
+        target_luma = 0.2989 * target[0, :, :, 0] + 0.5870 * target[0, :, :, 1] + 0.1140 * target[0, :, :, 2]
+        ref_luma = 0.2989 * reference[0, :, :, 0] + 0.5870 * reference[0, :, :, 1] + 0.1140 * reference[0, :, :, 2]
         
-        # Define zone boundaries as tensors for vectorized operations
+        # Define zone boundaries
         zone_bounds = {
             "shadows": (0.0, 0.3),
-            "midtones": (0.3, 0.7),
+            "midtones": (0.3, 0.7), 
             "highlights": (0.7, 1.0)
         }
         
@@ -189,29 +220,36 @@ class ApexColorReference:
         else:
             active_zones = [zones.replace("_only", "")]
         
-        result = target.clone()
-        
-        # Process all zones with vectorized operations
+        # Apply zone-based matching
         for zone in active_zones:
             low, high = zone_bounds[zone]
             
-            # Create masks (vectorized)
-            target_mask = (target_luma >= low) & (target_luma <= high)  # [B, H, W, 1]
+            # Create masks for the zone
+            target_mask = (target_luma >= low) & (target_luma <= high)
             ref_mask = (ref_luma >= low) & (ref_luma <= high)
             
-            # Calculate means using masked operations (much faster)
             if target_mask.any() and ref_mask.any():
-                # Vectorized mean calculation for all channels
-                target_zone_means = torch.sum(target * target_mask, dim=(1,2), keepdim=True) / \
-                                  (torch.sum(target_mask, dim=(1,2), keepdim=True) + 1e-8)
-                ref_zone_means = torch.sum(reference * ref_mask, dim=(1,2), keepdim=True) / \
-                               (torch.sum(ref_mask, dim=(1,2), keepdim=True) + 1e-8)
-                
-                # Apply adjustment (vectorized)
-                adjustment = strength * (ref_zone_means - target_zone_means)
-                result = torch.where(target_mask, 
-                                   torch.clamp(target + adjustment, 0, 1), 
-                                   result)
+                # Process each color channel
+                for c in range(3):
+                    # Get pixels in this zone
+                    target_zone_pixels = target[0, :, :, c][target_mask]
+                    ref_zone_pixels = reference[0, :, :, c][ref_mask]
+                    
+                    # Calculate zone statistics
+                    target_mean = torch.mean(target_zone_pixels)
+                    target_std = torch.std(target_zone_pixels)
+                    ref_mean = torch.mean(ref_zone_pixels)
+                    ref_std = torch.std(ref_zone_pixels)
+                    
+                    # Apply statistical matching within the zone
+                    normalized = (target_zone_pixels - target_mean) / (target_std + 1e-8)
+                    adjusted = normalized * ref_std + ref_mean
+                    
+                    # Blend with original based on strength
+                    blended = target_zone_pixels + strength * (adjusted - target_zone_pixels)
+                    
+                    # Apply back to result
+                    result[0, :, :, c][target_mask] = torch.clamp(blended, 0, 1)
         
         return result
 
@@ -219,57 +257,21 @@ class ApexColorReference:
         """Selective color matching based on specified zones"""
         return self._zone_based_matching(target, reference, zones, strength)
 
-    def _create_fast_curve_lut(self, x_points, y_points, strength, device):
-        """Create LUT using fast GPU interpolation instead of scipy"""
-        # Use torch.lerp for linear interpolation on GPU
-        lut_size = 256
-        lut_x = torch.linspace(0, 1, lut_size, device=device)
-        
-        # Simple linear interpolation between points (much faster than spline)
-        x_flat = x_points.flatten()
-        y_flat = y_points.flatten()
-        
-        # Use torch.searchsorted for fast interpolation
-        indices = torch.searchsorted(x_flat, lut_x)
-        indices = torch.clamp(indices, 1, len(x_flat) - 1)
-        
-        # Linear interpolation
-        x0 = x_flat[indices - 1]
-        x1 = x_flat[indices]
-        y0 = y_flat[indices - 1]
-        y1 = y_flat[indices]
-        
-        # Avoid division by zero
-        weight = torch.where(x1 != x0, (lut_x - x0) / (x1 - x0), torch.zeros_like(lut_x))
-        lut_y = y0 + weight * (y1 - y0)
-        
-        # Apply strength blending
-        identity = torch.linspace(0, 1, lut_size, device=device)
-        lut_y = identity + strength * (lut_y - identity)
-        
-        return lut_y.view(lut_size, 1, 1, 1)  # Shape for broadcasting
-
-    def _create_curve_lut(self, x_points, y_points, strength):
-        """Legacy function - replaced by fast version"""
-        return self._create_fast_curve_lut(x_points, y_points, strength, x_points.device)
-
     def _preserve_luminance(self, original, adjusted):
-        """Optimized luminance preservation using vectorized operations"""
-        # Pre-compute luminance weights
-        luma_weights = torch.tensor([0.2989, 0.5870, 0.1140], 
-                                  device=original.device).view(1, 1, 1, 3)
+        """Preserve original luminance while keeping color changes"""
+        # Calculate original luminance
+        orig_luma = 0.2989 * original[0, :, :, 0] + 0.5870 * original[0, :, :, 1] + 0.1140 * original[0, :, :, 2]
         
-        # Vectorized luminance calculation
-        orig_luma = torch.sum(original * luma_weights, dim=-1, keepdim=True)
-        adj_luma = torch.sum(adjusted * luma_weights, dim=-1, keepdim=True)
+        # Calculate adjusted luminance  
+        adj_luma = 0.2989 * adjusted[0, :, :, 0] + 0.5870 * adjusted[0, :, :, 1] + 0.1140 * adjusted[0, :, :, 2]
         
-        # Safe division with epsilon
-        ratio = torch.where(adj_luma > 1e-6, 
-                          orig_luma / adj_luma, 
-                          torch.ones_like(orig_luma))
+        # Calculate ratio to preserve luminance
+        ratio = torch.where(adj_luma > 1e-6, orig_luma / adj_luma, torch.ones_like(orig_luma))
         
-        # Apply ratio (broadcasting automatically handles dimensions)
-        result = adjusted * ratio
+        # Apply ratio to all channels
+        result = adjusted.clone()
+        for c in range(3):
+            result[0, :, :, c] = adjusted[0, :, :, c] * ratio
         
         return torch.clamp(result, 0, 1)
 
