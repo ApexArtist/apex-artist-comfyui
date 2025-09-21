@@ -2,9 +2,9 @@
 
 ## Project Overview
 This project provides professional image processing nodes for ComfyUI, focusing on high-quality image manipulation with advanced algorithms. The codebase consists of specialized nodes for:
-- Image resizing with multiple algorithms (`apex_resize.py`)
-- RGB curve adjustments (`apex_rgb_curve.py`)
+- Smart image resizing with AI-compatible resolutions (`apex_smart_resize.py`)
 - Depth to normal map conversion (`apex_depth_to_normal.py`)
+- Color reference and matching tools (`apex_color_reference.py`)
 
 ## Core Architecture
 - Each node is implemented as a standalone Python class
@@ -29,13 +29,20 @@ This project provides professional image processing nodes for ComfyUI, focusing 
      ```python
      "master_shadows": ("INT", {"default": 0, "min": 0, "max": 255, "step": 1})
      ```
+   - JSON string inputs for complex data (curve points, color profiles)
 
 3. **Configuration Constants**:
    - Presets and constants are defined as class attributes
-   - Example: `curve_presets` in `ApexRGBCurve`
+   - Examples: `curve_presets` in `ApexRGBCurve`, `resolution_sets` in `ApexSmartResize`
+   - Film profiles stored as dictionaries with RGB transformations
+
+4. **Node Registration**:
+   - All nodes registered in `__init__.py` with `NODE_CLASS_MAPPINGS` and `NODE_DISPLAY_NAME_MAPPINGS`
+   - Three total nodes: ApexSmartResize, ApexDepthToNormal, ApexColorReference
 
 ## Dependencies
-- Core dependencies: torch, numpy, PIL
+- Core dependencies: torch, numpy, PIL, scipy (provided by ComfyUI)
+- Additional: scikit-image>=0.19.0 for advanced image processing
 - Version requirements in `requirements.txt`
 - All nodes require ComfyUI environment
 
@@ -48,6 +55,7 @@ This project provides professional image processing nodes for ComfyUI, focusing 
 2. **Image Processing Best Practices**:
    - Handle tensor dimensions consistently (NHWC format)
    - Use torch.nn.functional for optimized operations
+   - Batch processing support for multiple images
    - Include error handling for invalid inputs
 
 3. **Performance Considerations**:
@@ -58,6 +66,6 @@ This project provides professional image processing nodes for ComfyUI, focusing 
 ## Testing
 - Manual testing through ComfyUI interface
 - Key test cases:
-  - Resolution snapping functionality
-  - Color curve transformations
-  - Depth map conversions
+  - Resolution snapping functionality (ApexSmartResize)
+  - Depth map conversions (ApexDepthToNormal)
+  - Color reference matching (ApexColorReference)

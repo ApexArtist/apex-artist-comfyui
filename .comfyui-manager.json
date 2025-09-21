@@ -9,11 +9,7 @@
     "install_type": "git-clone",
     "nodelist": [
         "ApexSmartResize",
-        "ApexRGBCurve", 
         "ApexDepthToNormal",
-        "ApexColorReference",
-        "ApexColorScience",
-        "ApexFilmProfiles",
-        "ApexWidgets"
+        "ApexColorReference"
     ]
 }

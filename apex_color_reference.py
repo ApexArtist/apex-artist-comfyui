@@ -52,8 +52,8 @@ class ApexColorReference:
             }
         }
 
-    RETURN_TYPES = ("IMAGE", "CURVE", "CURVE", "CURVE", "CURVE", "STRING")
-    RETURN_NAMES = ("matched_image", "master_curve", "red_curve", "green_curve", "blue_curve", "match_info")
+    RETURN_TYPES = ("IMAGE", "STRING")
+    RETURN_NAMES = ("matched_image", "match_info")
     FUNCTION = "match_colors"
     CATEGORY = "ApexArtist/Color"
 
@@ -68,102 +68,95 @@ class ApexColorReference:
             
             # Get histograms and curves based on method
             if matching_method == "histogram_matching":
-                curves = self._histogram_matching(target_image, reference_image)
+                matched_image = self._histogram_matching(target_image, reference_image, strength)
             elif matching_method == "curve_extraction":
-                curves = self._extract_curves(target_image, reference_image)
+                matched_image = self._extract_curves(target_image, reference_image, strength)
             elif matching_method == "statistical":
-                curves = self._statistical_matching(target_image, reference_image)
+                matched_image = self._statistical_matching(target_image, reference_image, strength)
             elif matching_method == "zone_based":
-                curves = self._zone_based_matching(target_image, reference_image, match_zones)
+                matched_image = self._zone_based_matching(target_image, reference_image, match_zones, strength)
             else:  # selective
-                curves = self._selective_matching(target_image, reference_image, match_zones)
+                matched_image = self._selective_matching(target_image, reference_image, match_zones, strength)
             
-            # Apply strength factor
-            curves = self._adjust_curve_strength(curves, strength)
-            
-            # Apply curves to image
-            matched_image = self._apply_curves(target_image, curves, preserve_luminance)
+            # Apply preserve luminance if requested
+            if preserve_luminance:
+                matched_image = self._preserve_luminance(target_image, matched_image)
             
             # Generate match info
-            match_info = self._generate_match_info(curves, matching_method, strength)
+            match_info = self._generate_match_info(matching_method, strength, preserve_luminance, match_zones)
             
-            return (matched_image,) + curves + (match_info,)
+            return (matched_image, match_info)
             
         except Exception as e:
             print(f"Color matching error: {str(e)}")
-            return (target_image, None, None, None, None, str(e))
+            return (target_image, f"Error: {str(e)}")
 
-    def _histogram_matching(self, target, reference):
+    def _histogram_matching(self, target, reference, strength):
         """Match histograms between target and reference images"""
-        master_curve = []
-        rgb_curves = []
+        device = target.device
+        result = target.clone()
         
         # Process each channel
         for c in range(3):
             # Calculate histograms
-            target_hist = torch.histc(target[0,:,:,c], bins=256, min=0, max=1)
-            ref_hist = torch.histc(reference[0,:,:,c], bins=256, min=0, max=1)
+            target_flat = target[0,:,:,c].flatten()
+            ref_flat = reference[0,:,:,c].flatten()
             
-            # Calculate cumulative distributions
-            target_cdf = torch.cumsum(target_hist, dim=0)
-            ref_cdf = torch.cumsum(ref_hist, dim=0)
+            # Get sorted values
+            target_sorted = torch.sort(target_flat)[0]
+            ref_sorted = torch.sort(ref_flat)[0]
             
-            # Normalize CDFs
-            target_cdf = target_cdf / target_cdf[-1]
-            ref_cdf = ref_cdf / ref_cdf[-1]
+            # Create mapping
+            n_pixels = target_flat.shape[0]
+            ref_n_pixels = ref_flat.shape[0]
+            
+            # Interpolate reference values to match target distribution
+            indices = torch.linspace(0, ref_n_pixels - 1, n_pixels).long()
+            indices = torch.clamp(indices, 0, ref_n_pixels - 1)
+            mapped_values = ref_sorted[indices]
+            
+            # Apply mapping with strength
+            original_values = target_sorted
+            adjusted_values = original_values + strength * (mapped_values - original_values)
             
             # Create lookup table
-            lut = torch.zeros(256)
-            for i in range(256):
-                target_val = i / 255.0
-                # Find closest point in target CDF
-                idx = torch.argmin(torch.abs(target_cdf - target_val))
-                # Find corresponding value in reference CDF
-                matched_val = torch.argmin(torch.abs(ref_cdf - target_cdf[idx])) / 255.0
-                lut[i] = matched_val
+            lut = torch.zeros(256, device=device, dtype=torch.float32)
+            for i in range(n_pixels):
+                orig_idx = int(torch.clamp(original_values[i] * 255, 0, 255))
+                lut[orig_idx] = adjusted_values[i]
             
-            # Convert LUT to curve points
-            curve_points = [(i/255.0, lut[i].item()) for i in range(0, 256, 51)]
-            rgb_curves.append(curve_points)
-            
-            # Contribute to master curve
-            if c == 0:  # Initialize master curve
-                master_curve = curve_points.copy()
-            else:  # Average with existing master curve
-                master_curve = [(x, (y + master_curve[i][1])/2) 
-                              for i, (x, y) in enumerate(curve_points)]
+            # Apply LUT to channel
+            img_255 = (target[0,:,:,c] * 255).long().clamp(0, 255)
+            result[0,:,:,c] = lut[img_255]
         
-        return (master_curve,) + tuple(rgb_curves)
+        return torch.clamp(result, 0, 1)
 
-    def _extract_curves(self, target, reference):
+    def _extract_curves(self, target, reference, strength):
         """Extract tone curves by analyzing image characteristics"""
-        curves = []
+        result = target.clone()
         
-        # Process each channel including luminance
-        for c in range(4):  # 3 RGB channels + luminance
-            if c < 3:
-                target_channel = target[0,:,:,c]
-                ref_channel = reference[0,:,:,c]
-            else:
-                # Calculate luminance
-                target_channel = 0.2989 * target[0,:,:,0] + 0.5870 * target[0,:,:,1] + 0.1140 * target[0,:,:,2]
-                ref_channel = 0.2989 * reference[0,:,:,0] + 0.5870 * reference[0,:,:,1] + 0.1140 * reference[0,:,:,2]
+        # Process each channel
+        for c in range(3):
+            target_channel = target[0,:,:,c]
+            ref_channel = reference[0,:,:,c]
             
             # Analyze key points in both images
             percentiles = [0, 10, 25, 50, 75, 90, 100]
             target_points = torch.tensor([torch.quantile(target_channel, p/100) for p in percentiles])
             ref_points = torch.tensor([torch.quantile(ref_channel, p/100) for p in percentiles])
             
-            # Create curve points
-            curve_points = [(t.item(), r.item()) for t, r in zip(target_points, ref_points)]
-            curves.append(curve_points)
+            # Create curve mapping
+            curve_lut = self._create_curve_lut(target_points, ref_points, strength)
+            
+            # Apply curve
+            img_255 = (target_channel * 255).long().clamp(0, 255)
+            result[0,:,:,c] = curve_lut[img_255]
         
-        # Return master curve (luminance) and RGB curves
-        return tuple(curves)
+        return torch.clamp(result, 0, 1)
 
-    def _statistical_matching(self, target, reference):
+    def _statistical_matching(self, target, reference, strength):
         """Match statistical properties between images"""
-        curves = []
+        result = target.clone()
         
         # Process each channel
         for c in range(3):
@@ -176,26 +169,23 @@ class ApexColorReference:
             r_mean = torch.mean(ref_channel)
             r_std = torch.std(ref_channel)
             
-            # Create transfer function
-            def transfer(x):
-                return ((x - t_mean) * (r_std / t_std) + r_mean).clamp(0, 1)
+            # Apply statistical transformation
+            normalized = (target_channel - t_mean) / (t_std + 1e-8)
+            adjusted = normalized * r_std + r_mean
             
-            # Create curve points
-            points = torch.linspace(0, 1, 5)
-            curve_points = [(x.item(), transfer(x).item()) for x in points]
-            curves.append(curve_points)
+            # Blend with original based on strength
+            result[0,:,:,c] = target_channel + strength * (adjusted - target_channel)
         
-        # Create master curve (average of RGB)
-        master_points = []
-        for i in range(len(curves[0])):
-            x = curves[0][i][0]
-            y = sum(c[i][1] for c in curves) / 3
-            master_points.append((x, y))
-        
-        return (master_points,) + tuple(curves)
+        return torch.clamp(result, 0, 1)
 
-    def _zone_based_matching(self, target, reference, zones):
+    def _zone_based_matching(self, target, reference, zones, strength):
         """Match specific luminance zones between images"""
+        result = target.clone()
+        
+        # Calculate luminance
+        target_luma = 0.2989 * target[0,:,:,0] + 0.5870 * target[0,:,:,1] + 0.1140 * target[0,:,:,2]
+        ref_luma = 0.2989 * reference[0,:,:,0] + 0.5870 * reference[0,:,:,1] + 0.1140 * reference[0,:,:,2]
+        
         # Define zone boundaries
         zone_bounds = {
             "shadows": (0.0, 0.3),
@@ -214,160 +204,80 @@ class ApexColorReference:
         else:
             active_zones = [zones.replace("_only", "")]
         
-        curves = []
-        # Process each channel
-        for c in range(3):
-            curve_points = [(0,0), (1,1)]  # Start with identity mapping
+        # Apply zone-based matching
+        for zone in active_zones:
+            low, high = zone_bounds[zone]
             
-            for zone in active_zones:
-                low, high = zone_bounds[zone]
-                
-                # Get pixels in zone
-                target_mask = (target[0,:,:,c] >= low) & (target[0,:,:,c] <= high)
-                ref_mask = (reference[0,:,:,c] >= low) & (reference[0,:,:,c] <= high)
-                
-                if target_mask.any() and ref_mask.any():
-                    # Calculate mean values in zone
-                    t_mean = target[0,:,:,c][target_mask].mean()
-                    r_mean = reference[0,:,:,c][ref_mask].mean()
+            # Create mask for zone
+            zone_mask = (target_luma >= low) & (target_luma <= high)
+            
+            if zone_mask.any():
+                for c in range(3):
+                    target_zone = target[0,:,:,c][zone_mask]
+                    ref_zone_mask = (ref_luma >= low) & (ref_luma <= high)
                     
-                    # Add control point
-                    curve_points.append((t_mean.item(), r_mean.item()))
-            
-            # Sort points by x coordinate
-            curve_points = sorted(curve_points)
-            curves.append(curve_points)
-        
-        # Create master curve (average of RGB)
-        master_points = []
-        for i in range(len(curves[0])):
-            x = curves[0][i][0]
-            y = sum(c[i][1] for c in curves) / 3
-            master_points.append((x, y))
-        
-        return (master_points,) + tuple(curves)
-
-    def _selective_matching(self, target, reference, zones):
-        """Selective color matching based on specified zones"""
-        # Similar to zone_based but with color-aware matching
-        curves = self._zone_based_matching(target, reference, zones)
-        
-        # Enhance curves based on color relationships
-        enhanced_curves = []
-        for curve in curves:
-            # Add more control points for smoother transition
-            x_vals = [p[0] for p in curve]
-            y_vals = [p[1] for p in curve]
-            
-            # Create spline interpolation
-            spline = interpolate.PchipInterpolator(x_vals, y_vals)
-            
-            # Generate smoother curve
-            x_new = np.linspace(0, 1, 10)
-            y_new = spline(x_new)
-            
-            # Convert to points
-            enhanced_curves.append(list(zip(x_new, y_new)))
-        
-        return tuple(enhanced_curves)
-
-    def _adjust_curve_strength(self, curves, strength):
-        """Adjust the strength of the curves"""
-        adjusted_curves = []
-        for curve in curves:
-            # Adjust each point except endpoints
-            adjusted_points = []
-            for i, (x, y) in enumerate(curve):
-                if i == 0 or i == len(curve)-1:
-                    adjusted_points.append((x, y))
-                else:
-                    # Interpolate between identity (x=y) and target curve
-                    adj_y = x + (y - x) * strength
-                    adjusted_points.append((x, adj_y))
-            adjusted_curves.append(adjusted_points)
-        return tuple(adjusted_curves)
-
-    def _apply_curves(self, image, curves, preserve_luminance):
-        """Apply the curves to the image"""
-        master_curve, r_curve, g_curve, b_curve = curves
-        
-        # Create lookup tables
-        master_lut = self._create_lut(master_curve)
-        r_lut = self._create_lut(r_curve)
-        g_lut = self._create_lut(g_curve)
-        b_lut = self._create_lut(b_curve)
-        
-        # Apply curves
-        result = image.clone()
-        
-        if preserve_luminance:
-            # Calculate original luminance
-            luminance = 0.2989 * image[:,:,:,0] + 0.5870 * image[:,:,:,1] + 0.1140 * image[:,:,:,2]
-        
-        # Apply channel curves
-        for c, lut in enumerate([r_lut, g_lut, b_lut]):
-            result[:,:,:,c] = self._apply_lut(result[:,:,:,c], lut)
-        
-        # Apply master curve
-        result = self._apply_lut(result, master_lut)
-        
-        if preserve_luminance:
-            # Calculate new luminance
-            new_luminance = 0.2989 * result[:,:,:,0] + 0.5870 * result[:,:,:,1] + 0.1140 * result[:,:,:,2]
-            
-            # Adjust to preserve original luminance
-            ratio = torch.where(new_luminance > 0.001, luminance / new_luminance, torch.ones_like(luminance))
-            result = result * ratio.unsqueeze(-1)
+                    if ref_zone_mask.any():
+                        ref_zone = reference[0,:,:,c][ref_zone_mask]
+                        
+                        # Match statistics within zone
+                        t_mean = torch.mean(target_zone)
+                        r_mean = torch.mean(ref_zone)
+                        
+                        adjustment = strength * (r_mean - t_mean)
+                        result[0,:,:,c][zone_mask] = torch.clamp(
+                            target[0,:,:,c][zone_mask] + adjustment, 0, 1
+                        )
         
         return result
 
-    def _create_lut(self, curve_points):
+    def _selective_matching(self, target, reference, zones, strength):
+        """Selective color matching based on specified zones"""
+        return self._zone_based_matching(target, reference, zones, strength)
+
+    def _create_curve_lut(self, x_points, y_points, strength):
         """Create a lookup table from curve points"""
-        x = torch.tensor([p[0] for p in curve_points])
-        y = torch.tensor([p[1] for p in curve_points])
+        device = x_points.device
         
-        # Create lookup table
-        lut = torch.zeros(256)
-        for i in range(256):
-            input_val = i / 255.0
-            # Find surrounding points
-            mask = x <= input_val
-            if not mask.any():
-                lut[i] = y[0]
-            elif mask.all():
-                lut[i] = y[-1]
-            else:
-                idx = torch.where(mask)[0][-1]
-                # Linear interpolation
-                x1, x2 = x[idx], x[idx + 1]
-                y1, y2 = y[idx], y[idx + 1]
-                lut[i] = y1 + (input_val - x1) * (y2 - y1) / (x2 - x1)
+        # Interpolate curve
+        x_np = x_points.cpu().numpy()
+        y_np = y_points.cpu().numpy()
         
-        return lut
+        # Create spline interpolation
+        spline = interpolate.PchipInterpolator(x_np, y_np)
+        
+        # Generate LUT
+        lut_x = np.linspace(0, 1, 256)
+        lut_y = spline(lut_x)
+        
+        # Apply strength
+        identity = np.linspace(0, 1, 256)
+        lut_y = identity + strength * (lut_y - identity)
+        
+        return torch.tensor(lut_y, device=device, dtype=torch.float32)
 
-    def _apply_lut(self, image, lut):
-        """Apply a lookup table to an image"""
-        device = image.device
-        lut = lut.to(device)
+    def _preserve_luminance(self, original, adjusted):
+        """Preserve original luminance"""
+        # Calculate original luminance
+        orig_luma = 0.2989 * original[:,:,:,0] + 0.5870 * original[:,:,:,1] + 0.1140 * original[:,:,:,2]
         
-        # Scale to 0-255 range
-        img_255 = (image * 255).long().clamp(0, 255)
+        # Calculate adjusted luminance
+        adj_luma = 0.2989 * adjusted[:,:,:,0] + 0.5870 * adjusted[:,:,:,1] + 0.1140 * adjusted[:,:,:,2]
         
-        # Apply LUT
-        return lut[img_255]
+        # Calculate ratio
+        ratio = torch.where(adj_luma > 0.001, orig_luma / adj_luma, torch.ones_like(orig_luma))
+        
+        # Apply ratio to preserve luminance
+        result = adjusted * ratio.unsqueeze(-1)
+        
+        return torch.clamp(result, 0, 1)
 
-    def _generate_match_info(self, curves, method, strength):
+    def _generate_match_info(self, method, strength, preserve_luminance, zones):
         """Generate information about the color matching"""
-        master, r, g, b = curves
-        
         info = [
             f"Color Match Method: {method}",
-            f"Match Strength: {strength:.2f}",
-            f"Curve Points:",
-            f"  Master: {len(master)} points",
-            f"  Red: {len(r)} points",
-            f"  Green: {len(g)} points",
-            f"  Blue: {len(b)} points"
+            f"Strength: {strength:.2f}",
+            f"Preserve Luminance: {preserve_luminance}",
+            f"Target Zones: {zones}"
         ]
         
-        return "\n".join(info)
+        return " | ".join(info)

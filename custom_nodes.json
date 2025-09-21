@@ -8,8 +8,8 @@
         "tags": ["image processing", "color grading", "resize", "depth map"],
         "nodes": [
             "Apex Smart Resize",
-            "Apex RGB Curves",
-            "Apex Depth to Normal"
+            "Apex Depth to Normal",
+            "Apex Color Reference"
         ],
         "install_type": "git",
         "files": [
