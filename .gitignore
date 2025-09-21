@@ -19,6 +19,13 @@ ENV/
 *.swp
 *.swo
 
+# Model cache directories
+models/
+*.pth
+*.pt
+*.safetensors
+*.ckpt
+
 # OS specific files
 .DS_Store
 Thumbs.db

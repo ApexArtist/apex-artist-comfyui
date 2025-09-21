@@ -1,5 +1,10 @@
 # Core dependencies are provided by ComfyUI:
-# torch, torchvision, numpy, Pillow, scipy
+# torch, torchvision, torchaudio (latest from ComfyUI)
+# numpy>=1.25.0 (from ComfyUI)
+# Pillow (from ComfyUI)
+# scipy (from ComfyUI)
 
 # Additional dependencies specific to Apex Artist nodes:
 scikit-image>=0.19.0  # For advanced image processing functions
+
+# Note: Video processing functionality has been removed to maintain compatibility

@@ -76,6 +76,7 @@ class ApexBlur:
                     "max": 1.0,
                     "step": 0.01
                 }),
+                "mask": ("MASK",),
             }
         }
 
@@ -85,7 +86,7 @@ class ApexBlur:
     CATEGORY = "ApexArtist/Effects"
 
     def apply_blur(self, image, blur_type="gaussian", radius=5.0, strength=1.0, 
-                   angle=0.0, center_x=0.5, center_y=0.5, edge_threshold=0.1):
+                   angle=0.0, center_x=0.5, center_y=0.5, edge_threshold=0.1, mask=None):
         try:
             # Ensure image is in correct format [B, H, W, C]
             if len(image.shape) == 3:
@@ -116,6 +117,10 @@ class ApexBlur:
                 blurred = image + strength * (blurred - image)
             
             # Generate blur info
+            # Apply mask if provided
+            if mask is not None:
+                blurred = self._apply_mask(image, blurred, mask)
+            
             blur_info = f"Blur: {blur_type} | Radius: {radius:.1f} | Strength: {strength:.2f}"
             if blur_type in ["motion"]:
                 blur_info += f" | Angle: {angle:.0f}°"
@@ -411,5 +416,29 @@ class ApexBlur:
             sampled = sampled.permute(0, 2, 3, 1)
             
             result += sampled
+        
+        return result / samples
+    
+    def _apply_mask(self, original, processed, mask):
+        """Apply mask to blend original and processed images"""
+        device = original.device
+        batch, height, width, channels = original.shape
+        
+        # Ensure mask has correct dimensions
+        if len(mask.shape) == 2:
+            mask = mask.unsqueeze(0).unsqueeze(-1)
+        elif len(mask.shape) == 3:
+            mask = mask.unsqueeze(-1)
+        
+        # Resize mask if needed
+        if mask.shape[1:3] != (height, width):
+            mask = F.interpolate(mask.permute(0, 3, 1, 2), size=(height, width), 
+                               mode='bilinear', align_corners=False).permute(0, 2, 3, 1)
+        
+        # Ensure mask is in range [0, 1]
+        mask = torch.clamp(mask, 0, 1)
+        
+        # Apply mask: masked areas get processed image, unmasked areas keep original
+        return original * (1 - mask) + processed * mask
         
         return result / samples
