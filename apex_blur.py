@@ -171,27 +171,44 @@ class ApexBlur:
         return kernel_1d.view(1, 1, kernel_size)
 
     def _gaussian_blur(self, image, radius):
-        """Optimized separable Gaussian blur"""
+        """Simple and reliable Gaussian blur"""
         device = image.device
         batch_size, height, width, channels = image.shape
         
-        # Use separable convolution for better performance
-        kernel_1d = self._create_gaussian_kernel(radius, device)
-        kernel_size = kernel_1d.shape[-1]
+        # Simple sigma calculation
+        sigma = max(radius / 2.0, 0.5)
+        kernel_size = int(2 * math.ceil(2 * sigma) + 1)
+        kernel_size = max(kernel_size, 3)  # Minimum size
+        
+        # Ensure odd kernel size
+        if kernel_size % 2 == 0:
+            kernel_size += 1
+        
+        # Create simple 2D Gaussian kernel (more straightforward)
+        x = torch.arange(kernel_size, device=device, dtype=torch.float32) - kernel_size // 2
+        y = torch.arange(kernel_size, device=device, dtype=torch.float32) - kernel_size // 2
+        xx, yy = torch.meshgrid(x, y, indexing='ij')
+        
+        kernel_2d = torch.exp(-(xx**2 + yy**2) / (2 * sigma**2))
+        kernel_2d = kernel_2d / kernel_2d.sum()
+        kernel_2d = kernel_2d.unsqueeze(0).unsqueeze(0)  # [1, 1, H, W]
+        
         padding = kernel_size // 2
         
-        # Reshape for batch convolution [B*C, 1, H, W]
-        img_reshaped = image.permute(0, 3, 1, 2).reshape(-1, 1, height, width)
+        # Apply to each channel separately for reliability
+        result_channels = []
+        for c in range(channels):
+            # Extract single channel [B, 1, H, W]
+            channel = image[:, :, :, c:c+1].permute(0, 3, 1, 2)
+            # Apply blur
+            blurred_channel = F.conv2d(channel, kernel_2d, padding=padding)
+            result_channels.append(blurred_channel)
         
-        # Horizontal pass
-        blurred = F.conv2d(img_reshaped, kernel_1d, padding=(0, padding))
+        # Combine channels back
+        blurred = torch.cat(result_channels, dim=1)  # [B, C, H, W]
+        blurred = blurred.permute(0, 2, 3, 1)  # [B, H, W, C]
         
-        # Vertical pass
-        kernel_1d_v = kernel_1d.transpose(-1, -2)
-        blurred = F.conv2d(blurred, kernel_1d_v, padding=(padding, 0))
-        
-        # Reshape back to [B, H, W, C]
-        blurred = blurred.reshape(batch_size, channels, height, width).permute(0, 2, 3, 1)
+        print(f"Simple Gaussian: radius={radius}, sigma={sigma:.2f}, kernel_size={kernel_size}")
         
         return blurred
 

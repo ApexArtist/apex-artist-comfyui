@@ -288,16 +288,26 @@ class ApexStableNormal:
     
     def normalize_normal_map(self, normal_tensor: torch.Tensor) -> torch.Tensor:
         """Normalize normal map to proper range and format"""
-        # Ensure tensor is in [0, 1] range for normal maps
+        # Ensure tensor is in [0, 1] range
         normal_tensor = normal_tensor.clamp(0, 1)
         
-        # Convert from [0, 1] to [-1, 1] range for proper normals, then back to [0, 1] for display
-        # This ensures proper normal map format
-        normal_normalized = (normal_tensor - 0.5) * 2.0  # Convert to [-1, 1]
-        normal_normalized = torch.nn.functional.normalize(normal_normalized, p=2, dim=-1)  # Normalize vectors
-        normal_normalized = (normal_normalized + 1.0) / 2.0  # Convert back to [0, 1]
+        # For normal maps, we usually want to keep them in [0,1] range for display
+        # where [0.5, 0.5, 1.0] represents a flat surface pointing up
+        # Only normalize if the values seem to be in the wrong range
         
-        return normal_normalized
+        # Check if this looks like a proper normal map already
+        z_channel = normal_tensor[:, :, :, 2]  # Blue channel should be high for normal maps
+        if z_channel.mean() < 0.3:  # If blue channel is too low, this might need normalization
+            # Convert from [0, 1] to [-1, 1] range for proper normals
+            normal_normalized = (normal_tensor - 0.5) * 2.0
+            # Normalize vectors to unit length
+            normal_normalized = torch.nn.functional.normalize(normal_normalized, p=2, dim=-1)
+            # Convert back to [0, 1] for display
+            normal_normalized = (normal_normalized + 1.0) / 2.0
+            return normal_normalized
+        
+        # If it already looks like a proper normal map, return as-is
+        return normal_tensor
     
     def generate_normal(self, image: torch.Tensor, mode: str = "regular", 
                        ensemble_size: int = 1, processing_resolution: int = 768,
@@ -410,8 +420,7 @@ class ApexStableNormal:
             
             # Return a fallback normal map (flat surface pointing up)
             fallback_normal = torch.full((1, image.shape[1], image.shape[2], 3), 0.5, dtype=torch.float32)
-            fallback_normal[:, :, :, 2] = 1.0  # Z component = 1 (pointing up)
-            fallback_normal = (fallback_normal + 1.0) / 2.0  # Convert to [0,1] range
+            fallback_normal[:, :, :, 2] = 1.0  # Z component = 1 (pointing up in [0,1] range)
             
             return fallback_normal, f"Error: {error_msg} | Returned flat normal map"
 
