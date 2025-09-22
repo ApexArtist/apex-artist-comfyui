@@ -4,7 +4,6 @@ from .apex_stable_normal import ApexStableNormal
 from .apex_color_reference import ApexColorReference
 from .apex_layer_blend import ApexLayerBlend
 from .apex_blur import ApexBlur
-from .apex_film_grading import ApexFilmGrading
 from .apex_sharpen import ApexSharpen
 
 NODE_CLASS_MAPPINGS = {
@@ -14,7 +13,6 @@ NODE_CLASS_MAPPINGS = {
     "ApexColorReference": ApexColorReference,
     "ApexLayerBlend": ApexLayerBlend,
     "ApexBlur": ApexBlur,
-    "ApexFilmGrading": ApexFilmGrading,
     "ApexSharpen": ApexSharpen,
 }
 
@@ -25,7 +23,6 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "ApexColorReference": "🎨 Apex Color Reference",
     "ApexLayerBlend": "✨ Apex Layer Blend",
     "ApexBlur": "🌀 Apex Blur",
-    "ApexFilmGrading": "🎬 Apex Film Grading",
     "ApexSharpen": "🔍 Apex Sharpen",
 }
 
