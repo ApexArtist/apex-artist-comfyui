@@ -72,7 +72,7 @@ class ApexLayerBlend:
                 }),
             },
             "optional": {
-                "mask": ("IMAGE",),
+                "mask": ("MASK",),
             }
         }
 
@@ -102,12 +102,16 @@ class ApexLayerBlend:
             
             # Apply mask if provided
             if mask is not None:
-                if len(mask.shape) == 3:
-                    mask = mask.unsqueeze(0)
+                # ComfyUI masks come as [B, H, W], we need [B, H, W, 1] for blending
+                if len(mask.shape) == 2:
+                    mask = mask.unsqueeze(0).unsqueeze(-1)  # [H, W] -> [1, H, W, 1]
+                elif len(mask.shape) == 3:
+                    mask = mask.unsqueeze(-1)  # [B, H, W] -> [B, H, W, 1]
+                
+                # Resize mask to match base image
                 mask = self._resize_to_match(mask, base_image)
-                # Convert mask to grayscale if it's RGB
-                if mask.shape[-1] == 3:
-                    mask = torch.mean(mask, dim=-1, keepdim=True)
+                
+                # Apply mask (mask values should be 0-1)
                 blended = base_image + mask * (blended - base_image)
             
             # Generate blend info
