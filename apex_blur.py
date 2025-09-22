@@ -88,6 +88,19 @@ class ApexBlur:
     def apply_blur(self, image, blur_type="gaussian", radius=5.0, strength=1.0, 
                    angle=0.0, center_x=0.5, center_y=0.5, edge_threshold=0.1, mask=None):
         try:
+            # Validate inputs
+            if image is None:
+                raise ValueError("Image input is required")
+            
+            # Set default values for optional parameters
+            angle = angle if angle is not None else 0.0
+            center_x = center_x if center_x is not None else 0.5
+            center_y = center_y if center_y is not None else 0.5
+            edge_threshold = edge_threshold if edge_threshold is not None else 0.1
+                        
+            # Debug info
+            print(f"Apex Blur: {blur_type}, radius={radius}, strength={strength}")
+            
             # Ensure image is in correct format [B, H, W, C]
             if len(image.shape) == 3:
                 image = image.unsqueeze(0)
@@ -116,11 +129,11 @@ class ApexBlur:
             if strength < 1.0:
                 blurred = image + strength * (blurred - image)
             
-            # Generate blur info
             # Apply mask if provided
             if mask is not None:
                 blurred = self._apply_mask(image, blurred, mask)
             
+            # Generate blur info
             blur_info = f"Blur: {blur_type} | Radius: {radius:.1f} | Strength: {strength:.2f}"
             if blur_type in ["motion"]:
                 blur_info += f" | Angle: {angle:.0f}°"
