@@ -213,67 +213,76 @@ class ApexBlur:
         return blurred
 
     def _strong_gaussian_blur(self, image, radius):
-        """Strong Gaussian blur with multiple passes"""
+        """Strong Gaussian blur with enhanced sigma"""
         device = image.device
         batch_size, height, width, channels = image.shape
         
-        # Use direct sigma calculation for stronger effect
-        sigma = radius
-        kernel_size = max(int(2 * math.ceil(3 * sigma) + 1), 7)
-        kernel_size = min(kernel_size, 101)
+        # Use much stronger sigma for dramatic effect
+        sigma = max(radius * 0.8, 1.0)  # More aggressive than regular gaussian
+        kernel_size = int(2 * math.ceil(2 * sigma) + 1)
+        kernel_size = max(kernel_size, 7)  # Minimum size for strong blur
         
         # Ensure odd kernel size
         if kernel_size % 2 == 0:
             kernel_size += 1
         
-        # Create stronger Gaussian kernel
+        # Create 2D Gaussian kernel
         x = torch.arange(kernel_size, device=device, dtype=torch.float32) - kernel_size // 2
-        kernel_1d = torch.exp(-(x**2) / (2 * sigma**2))
-        kernel_1d = kernel_1d / kernel_1d.sum()
-        kernel_1d = kernel_1d.view(1, 1, kernel_size)
+        y = torch.arange(kernel_size, device=device, dtype=torch.float32) - kernel_size // 2
+        xx, yy = torch.meshgrid(x, y, indexing='ij')
+        
+        kernel_2d = torch.exp(-(xx**2 + yy**2) / (2 * sigma**2))
+        kernel_2d = kernel_2d / kernel_2d.sum()
+        kernel_2d = kernel_2d.unsqueeze(0).unsqueeze(0)  # [1, 1, H, W]
         
         padding = kernel_size // 2
         
-        # Reshape for convolution
-        img_reshaped = image.permute(0, 3, 1, 2).reshape(-1, 1, height, width)
+        # Apply to each channel separately
+        result_channels = []
+        for c in range(channels):
+            channel = image[:, :, :, c:c+1].permute(0, 3, 1, 2)
+            blurred_channel = F.conv2d(channel, kernel_2d, padding=padding)
+            result_channels.append(blurred_channel)
         
-        # Apply multiple passes for stronger blur
-        blurred = img_reshaped
-        for _ in range(2):  # Two passes for stronger effect
-            # Horizontal pass
-            blurred = F.conv2d(blurred, kernel_1d, padding=(0, padding))
-            # Vertical pass
-            kernel_1d_v = kernel_1d.transpose(-1, -2)
-            blurred = F.conv2d(blurred, kernel_1d_v, padding=(padding, 0))
+        # Combine channels back
+        blurred = torch.cat(result_channels, dim=1)
+        blurred = blurred.permute(0, 2, 3, 1)
         
-        # Reshape back
-        blurred = blurred.reshape(batch_size, channels, height, width).permute(0, 2, 3, 1)
-        
-        print(f"Strong Gaussian: radius={radius}, sigma={sigma:.2f}, kernel_size={kernel_size}, passes=2")
+        print(f"Strong Gaussian: radius={radius}, sigma={sigma:.2f}, kernel_size={kernel_size}")
         
         return blurred
 
     def _box_blur(self, image, radius):
-        """Fast box blur using separable convolution"""
+        """Simple box blur using 2D uniform kernel"""
         device = image.device
         batch_size, height, width, channels = image.shape
         
-        kernel_size = int(2 * radius + 1)
-        kernel_1d = torch.ones(1, 1, kernel_size, device=device) / kernel_size
+        # Create box kernel size
+        kernel_size = max(int(2 * radius + 1), 3)
+        
+        # Ensure odd kernel size
+        if kernel_size % 2 == 0:
+            kernel_size += 1
+        
+        # Create uniform 2D box kernel
+        kernel_2d = torch.ones(kernel_size, kernel_size, device=device)
+        kernel_2d = kernel_2d / kernel_2d.sum()  # Normalize
+        kernel_2d = kernel_2d.unsqueeze(0).unsqueeze(0)  # [1, 1, H, W]
+        
         padding = kernel_size // 2
         
-        # Reshape for convolution
-        img_reshaped = image.permute(0, 3, 1, 2).reshape(-1, 1, height, width)
+        # Apply to each channel separately
+        result_channels = []
+        for c in range(channels):
+            channel = image[:, :, :, c:c+1].permute(0, 3, 1, 2)
+            blurred_channel = F.conv2d(channel, kernel_2d, padding=padding)
+            result_channels.append(blurred_channel)
         
-        # Horizontal pass
-        blurred = F.conv2d(img_reshaped, kernel_1d, padding=(0, padding))
+        # Combine channels back
+        blurred = torch.cat(result_channels, dim=1)
+        blurred = blurred.permute(0, 2, 3, 1)
         
-        # Vertical pass
-        kernel_1d_v = kernel_1d.transpose(-1, -2)
-        blurred = F.conv2d(blurred, kernel_1d_v, padding=(padding, 0))
-        
-        # Reshape back
-        blurred = blurred.reshape(batch_size, channels, height, width).permute(0, 2, 3, 1)
+        print(f"Box Blur: radius={radius}, kernel_size={kernel_size}")
         
         return blurred
 
@@ -382,7 +391,7 @@ class ApexBlur:
         return result
 
     def _lens_blur(self, image, radius, center_x, center_y):
-        """Optimized lens blur with depth of field simulation"""
+        """Simple lens blur with depth of field simulation"""
         device = image.device
         batch_size, height, width, channels = image.shape
         
@@ -395,20 +404,43 @@ class ApexBlur:
         distance = torch.sqrt((xx - center_x)**2 + (yy - center_y)**2)
         max_distance = torch.sqrt(torch.tensor(2.0, device=device))
         
-        # Normalize distance and create blur map
-        normalized_distance = distance / max_distance
-        blur_strength = torch.clamp(normalized_distance * radius, 0, radius)
+        # Normalize distance (0 = center, 1 = furthest corner)
+        normalized_distance = torch.clamp(distance / max_distance, 0, 1)
         
-        # Use variable Gaussian blur based on distance
-        # Simplified approach: blend between sharp and blurred versions
-        sharp_image = image
-        blurred_image = self._gaussian_blur(image, radius)
+        # Create simple lens blur by applying uniform blur with distance-based masking
+        # Create a moderate blur for the entire image
+        blur_sigma = max(radius / 3.0, 1.0)
+        blur_kernel_size = max(int(2 * math.ceil(2 * blur_sigma) + 1), 7)
         
-        # Create blend mask based on distance
-        blend_mask = (blur_strength / radius).unsqueeze(-1)
+        # Ensure odd kernel size
+        if blur_kernel_size % 2 == 0:
+            blur_kernel_size += 1
         
-        # Blend between sharp and blurred
-        result = sharp_image * (1 - blend_mask) + blurred_image * blend_mask
+        # Create 2D Gaussian kernel for lens blur
+        x = torch.arange(blur_kernel_size, device=device, dtype=torch.float32) - blur_kernel_size // 2
+        y = torch.arange(blur_kernel_size, device=device, dtype=torch.float32) - blur_kernel_size // 2
+        xx_k, yy_k = torch.meshgrid(x, y, indexing='ij')
+        
+        kernel_2d = torch.exp(-(xx_k**2 + yy_k**2) / (2 * blur_sigma**2))
+        kernel_2d = kernel_2d / kernel_2d.sum()
+        kernel_2d = kernel_2d.unsqueeze(0).unsqueeze(0)
+        
+        padding = blur_kernel_size // 2
+        
+        # Apply blur to each channel
+        blurred_channels = []
+        for c in range(channels):
+            channel = image[:, :, :, c:c+1].permute(0, 3, 1, 2)
+            blurred_channel = F.conv2d(channel, kernel_2d, padding=padding)
+            blurred_channels.append(blurred_channel)
+        
+        blurred_image = torch.cat(blurred_channels, dim=1).permute(0, 2, 3, 1)
+        
+        # Blend based on distance (center stays sharp, edges get blurred)
+        blend_mask = normalized_distance.unsqueeze(0).unsqueeze(-1)
+        result = image * (1 - blend_mask) + blurred_image * blend_mask
+        
+        print(f"Lens Blur: radius={radius}, center=({center_x:.2f}, {center_y:.2f}), blur_kernel={blur_kernel_size}")
         
         return result
 
