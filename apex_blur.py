@@ -30,6 +30,7 @@ class ApexBlur:
                 "image": ("IMAGE",),
                 "blur_type": ([
                     "gaussian",
+                    "strong_gaussian",
                     "box", 
                     "motion",
                     "radial",
@@ -39,8 +40,8 @@ class ApexBlur:
                     "zoom"
                 ], {"default": "gaussian"}),
                 "radius": ("FLOAT", {
-                    "default": 5.0,
-                    "min": 0.1,
+                    "default": 10.0,
+                    "min": 0.5,
                     "max": 100.0,
                     "step": 0.1
                 }),
@@ -108,6 +109,8 @@ class ApexBlur:
             # Apply blur based on type
             if blur_type == "gaussian":
                 blurred = self._gaussian_blur(image, radius)
+            elif blur_type == "strong_gaussian":
+                blurred = self._strong_gaussian_blur(image, radius)
             elif blur_type == "box":
                 blurred = self._box_blur(image, radius)
             elif blur_type == "motion":
@@ -148,13 +151,22 @@ class ApexBlur:
 
     def _create_gaussian_kernel(self, radius, device):
         """Create optimized 1D Gaussian kernel for separable convolution"""
-        sigma = radius / 3.0
-        kernel_size = min(int(2 * math.ceil(2 * sigma) + 1), 101)  # Cap kernel size
+        # Use radius directly as sigma for more predictable blur effect
+        sigma = max(radius * 0.3, 0.5)  # Ensure minimum sigma
+        kernel_size = max(int(2 * math.ceil(3 * sigma) + 1), 3)  # 3-sigma rule
+        kernel_size = min(kernel_size, 101)  # Cap kernel size
         
-        # Create 1D Gaussian kernel (more efficient)
+        # Ensure odd kernel size
+        if kernel_size % 2 == 0:
+            kernel_size += 1
+        
+        # Create 1D Gaussian kernel
         x = torch.arange(kernel_size, device=device, dtype=torch.float32) - kernel_size // 2
         kernel_1d = torch.exp(-(x**2) / (2 * sigma**2))
         kernel_1d = kernel_1d / kernel_1d.sum()
+        
+        # Debug output
+        print(f"Gaussian kernel: radius={radius}, sigma={sigma:.2f}, kernel_size={kernel_size}")
         
         return kernel_1d.view(1, 1, kernel_size)
 
@@ -180,6 +192,47 @@ class ApexBlur:
         
         # Reshape back to [B, H, W, C]
         blurred = blurred.reshape(batch_size, channels, height, width).permute(0, 2, 3, 1)
+        
+        return blurred
+
+    def _strong_gaussian_blur(self, image, radius):
+        """Strong Gaussian blur with multiple passes"""
+        device = image.device
+        batch_size, height, width, channels = image.shape
+        
+        # Use direct sigma calculation for stronger effect
+        sigma = radius
+        kernel_size = max(int(2 * math.ceil(3 * sigma) + 1), 7)
+        kernel_size = min(kernel_size, 101)
+        
+        # Ensure odd kernel size
+        if kernel_size % 2 == 0:
+            kernel_size += 1
+        
+        # Create stronger Gaussian kernel
+        x = torch.arange(kernel_size, device=device, dtype=torch.float32) - kernel_size // 2
+        kernel_1d = torch.exp(-(x**2) / (2 * sigma**2))
+        kernel_1d = kernel_1d / kernel_1d.sum()
+        kernel_1d = kernel_1d.view(1, 1, kernel_size)
+        
+        padding = kernel_size // 2
+        
+        # Reshape for convolution
+        img_reshaped = image.permute(0, 3, 1, 2).reshape(-1, 1, height, width)
+        
+        # Apply multiple passes for stronger blur
+        blurred = img_reshaped
+        for _ in range(2):  # Two passes for stronger effect
+            # Horizontal pass
+            blurred = F.conv2d(blurred, kernel_1d, padding=(0, padding))
+            # Vertical pass
+            kernel_1d_v = kernel_1d.transpose(-1, -2)
+            blurred = F.conv2d(blurred, kernel_1d_v, padding=(padding, 0))
+        
+        # Reshape back
+        blurred = blurred.reshape(batch_size, channels, height, width).permute(0, 2, 3, 1)
+        
+        print(f"Strong Gaussian: radius={radius}, sigma={sigma:.2f}, kernel_size={kernel_size}, passes=2")
         
         return blurred
 
