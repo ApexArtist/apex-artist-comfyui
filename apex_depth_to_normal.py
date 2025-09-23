@@ -150,15 +150,18 @@ class ApexDepthToNormal:
         x = torch.arange(kernel_size, device=device, dtype=torch.float32) - kernel_size // 2
         kernel = torch.exp(-(x**2) / (2 * sigma**2))
         kernel = kernel / kernel.sum()
-        kernel = kernel.view(1, 1, kernel_size)
+        
+        # Create 2D kernels for separable convolution
+        kernel_h = kernel.view(1, 1, 1, kernel_size)  # Horizontal kernel
+        kernel_v = kernel.view(1, 1, kernel_size, 1)  # Vertical kernel
         
         # Reshape for convolution
         img_reshaped = image.permute(0, 3, 1, 2).reshape(-1, 1, height, width)
         
-        # Apply separable convolution
+        # Apply separable convolution (horizontal then vertical)
         padding = kernel_size // 2
-        blurred = F.conv2d(img_reshaped, kernel, padding=(0, padding))
-        blurred = F.conv2d(blurred, kernel.transpose(-1, -2), padding=(padding, 0))
+        blurred = F.conv2d(img_reshaped, kernel_h, padding=(0, padding))
+        blurred = F.conv2d(blurred, kernel_v, padding=(padding, 0))
         
         return blurred.reshape(batch, channels, height, width).permute(0, 2, 3, 1)
     
