@@ -1,75 +1,50 @@
 # AI Agent Instructions for ComfyUI Apex Artist Nodes
 
 ## Project Overview
-This project provides professional image processing nodes for ComfyUI, focusing on high-quality image manipulation with advanced algorithms. The codebase consists of specialized nodes for:
-- Smart image resizing with AI-compatible resolutions (`apex_smart_resize.py`)
-- Depth to normal map conversion (`apex_depth_to_normal.py`)
-- Color reference and matching tools (`apex_color_reference.py`)
-- Layer blending with Photoshop-style blend modes (`apex_layer_blend.py`)
-- Professional blur effects with multiple algorithms (`apex_blur.py`)
+Professional VFX and post-production nodes for ComfyUI, focused on advanced image manipulation and film-grade effects. Nodes are designed for modularity, performance, and compatibility with AI workflows.
 
-## Core Architecture
-- Each node is implemented as a standalone Python class
-- Nodes follow ComfyUI's node structure pattern:
-  ```python
-  class ApexNode:
-      @classmethod
-      def INPUT_TYPES(cls):  # Defines node inputs
-      RETURN_TYPES = ("IMAGE",)  # Defines output types
-      FUNCTION = "process"  # Main processing function
-      CATEGORY = "ApexArtist"  # Node category in UI
-  ```
+## Architecture & Node Patterns
+- Each node is a standalone Python class, registered in `__init__.py` via `NODE_CLASS_MAPPINGS` and `NODE_DISPLAY_NAME_MAPPINGS`.
+- Node interface:
+  - `@classmethod INPUT_TYPES(cls)`: declares input types and ranges
+  - `RETURN_TYPES`, `RETURN_NAMES`: output types and names
+  - `FUNCTION`: main processing method
+  - `CATEGORY`: UI grouping
+- All image data is processed as PyTorch tensors (NHWC format).
+- Key nodes: `ApexSmartResize`, `ApexDepthToNormal`, `ApexStableNormal`, `ApexColorReference`, `ApexLayerBlend`, `ApexBlur`, `ApexSharpen`.
 
-## Key Conventions
-1. **Image Processing**:
-   - Images are processed as PyTorch tensors (NHWC format)
-   - Resolution constraints follow AI model requirements (see `ApexSmartResize.resolution_sets`)
+## Conventions & Constants
+- Resolution presets for AI models in `ApexSmartResize.resolution_sets`.
+- Blend modes, color matching, and blur algorithms are implemented as explicit methods (see `apex_layer_blend.py`, `apex_color_reference.py`, `apex_blur.py`).
+- Input validation uses ComfyUI's type/range system (see any node's `INPUT_TYPES`).
+- Model cache for StableNormal is managed in `models/` (see `MODELS_CACHE.md`).
 
-2. **Input Validation**:
-   - Parameters use ComfyUI's input type system with ranges
-   - Example from `apex_rgb_curve.py`:
-     ```python
-     "master_shadows": ("INT", {"default": 0, "min": 0, "max": 255, "step": 1})
-     ```
-   - JSON string inputs for complex data (curve points, color profiles)
+## Developer Workflows
+- **Versioning:** Use `update_version.py <new_version>` to update all manifest/version files. Follow with `git add .; git commit; git push` to trigger registry publishing.
+- **Node Addition:** Copy an existing node class, update `INPUT_TYPES`, `RETURN_TYPES`, and register in `__init__.py`.
+- **Testing:** Manual via ComfyUI interface. Key tests: resolution snapping, depth/normal conversion, color matching, blending, blur/sharpen algorithms.
+- **Model Management:** StableNormal models auto-download to `models/` on first use. To clear cache, delete the `models/` directory.
 
-3. **Configuration Constants**:
-   - Presets and constants are defined as class attributes
-   - Examples: `curve_presets` in `ApexRGBCurve`, `resolution_sets` in `ApexSmartResize`
-   - Film profiles stored as dictionaries with RGB transformations
+## Integration & Dependencies
+- Core: torch, numpy, PIL, scipy (provided by ComfyUI)
+- Extra: scikit-image>=0.19.0 (see `requirements.txt`)
+- All nodes require ComfyUI runtime; not standalone scripts.
+- StableNormal integration uses torch.hub and local cache (see `apex_stable_normal.py`).
 
-4. **Node Registration**:
-   - All nodes registered in `__init__.py` with `NODE_CLASS_MAPPINGS` and `NODE_DISPLAY_NAME_MAPPINGS`
-   - Five total nodes: ApexSmartResize, ApexDepthToNormal, ApexColorReference, ApexLayerBlend, ApexBlur
+## Project-Specific Patterns
+- All tensor operations are batch-compatible and GPU-accelerated where possible.
+- Error handling: nodes return original image and error info string on failure.
+- Console/debug info is returned as JSON string in some nodes (see `ApexSmartResize`).
+- Masking and blending use explicit tensor logic for compositing.
 
-## Dependencies
-- Core dependencies: torch, numpy, PIL, scipy (provided by ComfyUI)
-- Additional: scikit-image>=0.19.0 for advanced image processing
-- Version requirements in `requirements.txt`
-- All nodes require ComfyUI environment
+## Key Files & Directories
+- `__init__.py`: Node registration
+- `apex_*.py`: Node implementations
+- `models/`: Model cache (StableNormal)
+- `update_version.py`: Version update script
+- `.github/workflows/publish_action.yml`: GitHub Actions for registry publishing
+- `MODELS_CACHE.md`: Model cache details
+- `README.md`: Node features and install instructions
 
-## Development Guidelines
-1. **Adding New Nodes**:
-   - Follow existing node class structure
-   - Include INPUT_TYPES, RETURN_TYPES, FUNCTION, CATEGORY
-   - Document parameters with ranges and defaults
-
-2. **Image Processing Best Practices**:
-   - Handle tensor dimensions consistently (NHWC format)
-   - Use torch.nn.functional for optimized operations
-   - Batch processing support for multiple images
-   - Include error handling for invalid inputs
-
-3. **Performance Considerations**:
-   - Implement GPU acceleration where possible
-   - Use vectorized operations with torch/numpy
-   - Cache computed values for reuse
-
-## Testing
-- Manual testing through ComfyUI interface
-- Key test cases:
-  - Resolution snapping functionality (🚀 Apex Smart Resize)
-  - Depth map conversions (🎯 Apex Depth to Normal)
-  - Color reference matching (🎨 Apex Color Reference)
-  - Layer blending modes (✨ Apex Layer Blend)
-  - Blur effects and algorithms (🌀 Apex Blur)
+---
+For unclear conventions or missing details, ask the user for clarification or examples from their workflow.

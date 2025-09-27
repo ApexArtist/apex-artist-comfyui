@@ -4,7 +4,6 @@
   "publisher_id": "apex",
   "name": "Apex Artist Professional VFX Tools",
   "description": "Professional VFX and post-production nodes for ComfyUI - Advanced image processing, film grading, layer blending, and cinematic effects for creators and studios",
-  "version": "1.6.4",
   "license": "MIT",
   "repository": "https://github.com/ApexArtist/comfyui-apex-artist",
   "homepage": "https://github.com/ApexArtist/comfyui-apex-artist",
@@ -60,14 +59,6 @@
       "output_types": ["IMAGE", "STRING"]
     },
     {
-      "id": "ApexColorReference",
-      "display_name": "🎨 Apex Color Reference",
-      "description": "Professional color matching and reference tools",
-      "category": "image/color",
-      "input_types": ["IMAGE"],
-      "output_types": ["IMAGE", "STRING"]
-    },
-    {
       "id": "ApexLayerBlend",
       "display_name": "✨ Apex Layer Blend",
       "description": "Photoshop-style blending modes for advanced compositing",
@@ -91,5 +82,6 @@
       "input_types": ["IMAGE"],
       "output_types": ["IMAGE", "STRING"]
     }
-  ]
+  ],
+  "version": "1.6.5"
 }

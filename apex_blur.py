@@ -106,6 +106,8 @@ class ApexBlur:
             if len(image.shape) == 3:
                 image = image.unsqueeze(0)
             
+            batch_size = image.shape[0]
+            
             # Apply blur based on type
             if blur_type == "gaussian":
                 blurred = self._gaussian_blur(image, radius)

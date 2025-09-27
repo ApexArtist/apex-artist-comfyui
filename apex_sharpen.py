@@ -75,6 +75,7 @@ class ApexSharpen:
                         edge_protection=0.0, fine_detail=1.0, mask=None):
         
         device = image.device
+        batch_size = image.shape[0]
         
         # Apply selected sharpening algorithm
         if algorithm == "Unsharp Mask":
