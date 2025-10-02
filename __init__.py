@@ -5,6 +5,7 @@ from .apex_layer_blend import ApexLayerBlend
 from .apex_blur import ApexBlur
 from .apex_sharpen import ApexSharpen
 from .apex_rgb_curve import ApexRGBCurve
+from .apex_upscale import ApexUpscaleBy
 NODE_CLASS_MAPPINGS = {
     "ApexSmartResize": ApexSmartResize,
     "ApexDepthToNormal": ApexDepthToNormal,
@@ -12,6 +13,7 @@ NODE_CLASS_MAPPINGS = {
     "ApexBlur": ApexBlur,
     "ApexSharpen": ApexSharpen,
     "ApexRGBCurve": ApexRGBCurve,
+    "ApexUpscaleBy": ApexUpscaleBy,
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
@@ -21,6 +23,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "ApexBlur": "Apex Blur",
     "ApexSharpen": "Apex Sharpen",
     "ApexRGBCurve": "Apex RGB Curve",
+    "ApexUpscaleBy": "Apex Upscale By Ratio",
 }
 
 WEB_DIRECTORY = "./web"

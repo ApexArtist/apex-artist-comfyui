@@ -43,6 +43,14 @@
       "output_types": ["IMAGE", "STRING"]
     },
     {
+      "id": "ApexUpscaleBy",
+      "display_name": "🚀 Apex Upscale By Ratio",
+      "description": "Upscale image by a user-defined float ratio (high precision)",
+      "category": "image/transform",
+      "input_types": ["IMAGE"],
+      "output_types": ["IMAGE", "STRING"]
+    },
+    {
       "id": "ApexDepthToNormal",
       "display_name": "🎯 Apex Depth to Normal",
       "description": "Convert depth maps to normal maps for advanced lighting workflows",

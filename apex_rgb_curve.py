@@ -43,7 +43,6 @@ class ApexRGBCurve:
         Optimized: Apply RGB curves to a batch of images using vectorized torch operations (GPU-friendly).
         """
         try:
-            # Parse curve data from GUI
             curves = self._parse_curves(curve_data)
             lut_res = 4096
             device = image.device
@@ -53,7 +52,6 @@ class ApexRGBCurve:
             green_lut = torch.from_numpy(self._create_lut_highres(curves["green"], lut_res)).to(device)
             blue_lut = torch.from_numpy(self._create_lut_highres(curves["blue"], lut_res)).to(device)
 
-            # Optionally convert to linear
             img = image
             if processing_space == "srgb":
                 img = torch.where(img <= 0.04045, img / 12.92, ((img + 0.055) / 1.055) ** 2.4)
@@ -97,6 +95,20 @@ class ApexRGBCurve:
         except Exception as e:
             print(f"ApexRGBCurve error: {e}")
             return (image, image, f"Error: {e}")
+
+    def srgb_to_linear(self, img):
+        return torch.where(
+            img <= 0.04045,
+            img / 12.92,
+            ((img + 0.055) / 1.055) ** 2.4
+        )
+
+    def linear_to_srgb(self, img):
+        return torch.where(
+            img <= 0.0031308,
+            img * 12.92,
+            1.055 * torch.pow(img, 1/2.4) - 0.055
+        )
 
     # _apply_curves_highbit is now replaced by vectorized torch logic in apply_rgb_curves
 
